@@ -1,0 +1,6 @@
+node_modules/
+.env
+task-reminder-backend/node_modules/
+task-reminder-backend/.env
+task-reminder-frontend/node_modules/
+task-reminder-frontend/.env

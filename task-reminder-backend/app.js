@@ -1,0 +1,38 @@
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const attachUser = require('./middleware/attachUser');
+
+const app = express();
+
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('MongoDB Connected'))
+  .catch(err => console.error('MongoDB Error:', err));
+
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
+app.use(express.json());
+app.use(cookieParser());
+
+// 🚨 REMOVE session and passport setup 🚨
+
+app.use(attachUser);
+
+app.use('/auth', require('./routes/authRoutes'));
+app.use('/departments', require('./routes/departmentRoutes'));
+app.use('/tasks', require('./routes/taskRoutes'));
+app.use('/admin', require('./routes/adminRoutes'));
+
+app.get('/', (req, res) => res.send('Task Reminder API Running'));
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
