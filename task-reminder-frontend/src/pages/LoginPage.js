@@ -1,0 +1,130 @@
+import React, { useContext, useState } from 'react';
+import { AuthContext } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import {
+  Button, TextField, Link, Grid, Box, Typography, Container, Snackbar,
+  Paper, useMediaQuery, Alert
+} from '@mui/material';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import { useTheme } from '@mui/material/styles';
+import logo from '../assets/logo.png'; // Update path if needed
+
+const LoginPage = () => {
+  const { login } = useContext(AuthContext); // <--- Use login from context
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [loading, setLoading] = useState(false);
+  const [snack, setSnack] = useState({ open: false, message: '', severity: "success" });
+  const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  // Handle local login (email/password)
+  const handleInputChange = e => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleLocalLogin = async e => {
+    e.preventDefault();
+    setLoading(true);
+    setSnack({ open: false, message: '', severity: "success" });
+    try {
+      const user = await login(form.email, form.password); // <--- Use context login()
+      setSnack({ open: true, message: "Login successful! 🎉", severity: "success" });
+      setTimeout(() => navigate('/'), 1200);
+    } catch (err) {
+      setSnack({
+        open: true,
+        message: err.response?.data?.error || 'Login failed!',
+        severity: "error"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Container component="main" maxWidth="xs" sx={{ minHeight: "100vh", display: "flex", alignItems: "center" }}>
+      <Paper elevation={isMobile ? 0 : 4} sx={{
+        p: isMobile ? 2 : 4,
+        width: "100%",
+        borderRadius: 3,
+        boxShadow: isMobile ? "none" : undefined,
+        background: "#fff"
+      }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Box sx={{ mb: 2, width: 120, height: 120, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <img src={logo} alt="NEBSAM Digital Solutions" style={{ width: "100%", height: "auto", borderRadius: 16 }} />
+          </Box>
+          <Typography component="h1" variant="h5" sx={{ fontWeight: 700, color: "primary.main" }}>
+            Login
+          </Typography>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2, fontWeight: 500 }}>
+            NEBSAM TASK REMINDER 😀
+          </Typography>
+          <Box component="form" noValidate onSubmit={handleLocalLogin} sx={{ mt: 1 }}>
+            <Grid container spacing={isMobile ? 1 : 2}>
+              <Grid item xs={12}>
+                <TextField
+                  required
+                  fullWidth
+                  label="Email Address"
+                  name="email"
+                  autoComplete="email"
+                  value={form.email}
+                  onChange={handleInputChange}
+                  type="email"
+                  inputProps={{ maxLength: 50 }}
+                  autoFocus
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  required
+                  fullWidth
+                  name="password"
+                  label="Password"
+                  type="password"
+                  value={form.password}
+                  onChange={handleInputChange}
+                  inputProps={{ minLength: 6, maxLength: 30 }}
+                  autoComplete="current-password"
+                />
+              </Grid>
+            </Grid>
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              color="primary"
+              sx={{ mt: isMobile ? 2 : 3, mb: 2, py: 1.5, fontWeight: 600 }}
+              disabled={loading}
+              size="large"
+              endIcon={<LockOpenIcon />}
+            >
+              {loading ? 'Logging in...' : 'Login'}
+            </Button>
+            <Grid container justifyContent="center">
+              <Grid item>
+                <Link href="/register" variant="body2" underline="hover">
+                  Don't have an account? <b>Register</b>
+                </Link>
+              </Grid>
+            </Grid>
+          </Box>
+        </Box>
+      </Paper>
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack({ ...snack, open: false })}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert onClose={() => setSnack({ ...snack, open: false })} severity={snack.severity} sx={{ width: '100%' }}>
+          {snack.message}
+        </Alert>
+      </Snackbar>
+    </Container>
+  );
+};
+
+export default LoginPage;
