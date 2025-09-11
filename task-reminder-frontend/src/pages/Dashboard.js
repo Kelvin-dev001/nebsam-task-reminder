@@ -27,18 +27,25 @@ const Dashboard = () => {
   // Fetch tasks
   const fetchTasks = async () => {
     const params = filterDate ? { date: filterDate } : {};
-    const res = await axios.get(`${process.env.REACT_APP_API_URL}/tasks/my`, { params, withCredentials: true });
-    setTasks(res.data);
+    try {
+      const res = await axios.get(`${process.env.REACT_APP_API_URL}/tasks/my`, { params, withCredentials: true });
+      setTasks(res.data);
+    } catch (err) {
+      setTasks([]);
+    }
   };
 
-  // Fetch departments
+  // Fetch departments and tasks on mount or when filterDate changes
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`${process.env.REACT_APP_API_URL}/tasks/my`, { params, withCredentials: true });
+        const depRes = await axios.get(`${process.env.REACT_APP_API_URL}/departments/list`, { withCredentials: true });
         setDepartments(depRes.data);
         await fetchTasks();
+      } catch (err) {
+        setDepartments([]);
+        setTasks([]);
       } finally {
         setLoading(false);
       }
@@ -51,16 +58,25 @@ const Dashboard = () => {
   const handleAddTask = async (e) => {
     e.preventDefault();
     setAdding(true);
-    await axios.post('${process.env.REACT_APP_API_URL}/tasks/add', form, { withCredentials: true });
-    setForm({ title: '', description: '', department: '' });
-    setAdding(false);
-    fetchTasks();
+    try {
+      await axios.post(`${process.env.REACT_APP_API_URL}/tasks/add`, form, { withCredentials: true });
+      setForm({ title: '', description: '', department: '' });
+      fetchTasks();
+    } catch (err) {
+      // handle error as needed
+    } finally {
+      setAdding(false);
+    }
   };
 
   // Update Task status
   const handleUpdate = async (id, status) => {
-    await axios.patch(`${process.env.REACT_APP_API_URL}/tasks/${id}/status`, { status }, { withCredentials: true });
-    fetchTasks();
+    try {
+      await axios.patch(`${process.env.REACT_APP_API_URL}/tasks/${id}/status`, { status }, { withCredentials: true });
+      fetchTasks();
+    } catch (err) {
+      // handle error as needed
+    }
   };
 
   // Handle Logout with redirect
