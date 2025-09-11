@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
 
   // LOGIN
   const login = async (email, password) => {
-    const res = await axios.post('http://localhost:5000/auth/login', { email, password });
+    const res = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, { email, password });
     setUser(res.data.user);
     setToken(res.data.token);
     localStorage.setItem('user', JSON.stringify(res.data.user));
@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
 
   // ADMIN LOGIN
   const adminLogin = async (email, password) => {
-    const res = await axios.post('http://localhost:5000/auth/admin-login', { email, password });
+    const res = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, { email, password });
     setUser(res.data.user);
     setToken(res.data.token);
     localStorage.setItem('user', JSON.stringify(res.data.user));

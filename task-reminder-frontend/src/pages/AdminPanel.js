@@ -57,9 +57,9 @@ const AdminPanel = () => {
   const fetchData = async () => {
     try {
       const [deptRes, usersRes, tasksRes] = await Promise.all([
-        axios.get('http://localhost:5000/departments/list'),
-        axios.get('http://localhost:5000/admin/users'),
-        axios.get('http://localhost:5000/tasks/filter', { params: filters }),
+        axios.get('${process.env.REACT_APP_API_URL}/departments/list'),
+        axios.get('${process.env.REACT_APP_API_URL}/admin/users'),
+        axios.get('${process.env.REACT_APP_API_URL}/tasks/filter', { params: filters }),
       ]);
       setDepartments(deptRes.data);
       setUsers(usersRes.data);
@@ -76,7 +76,7 @@ const AdminPanel = () => {
     e.preventDefault();
     setAddingDept(true);
     try {
-      await axios.post('http://localhost:5000/departments/add', { name: newDept });
+      await axios.post('${process.env.REACT_APP_API_URL}/departments/add', { name: newDept });
       setNewDept('');
       fetchData();
     } catch (err) {
@@ -89,7 +89,7 @@ const AdminPanel = () => {
   // Department delete
   const handleDeleteDept = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/departments/${id}`);
+      await axios.delete(`${process.env.REACT_APP_API_URL}/departments/${id}`);
       fetchData();
     } catch (err) {
       console.error("Error deleting department:", err);
@@ -99,7 +99,7 @@ const AdminPanel = () => {
   // User delete
   const handleDeleteUser = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/admin/users/${id}`);
+      await axios.delete(`${process.env.REACT_APP_API_URL}/admin/users/${id}`);
       fetchData();
     } catch (err) {
       console.error("Error deleting user:", err);
@@ -127,7 +127,7 @@ const AdminPanel = () => {
     e.preventDefault();
     setAssignLoading(true);
     try {
-      await axios.post('http://localhost:5000/tasks/assign', assignForm);
+      await axios.post('${process.env.REACT_APP_API_URL}/tasks/assign', assignForm);
       handleAssignClose();
       fetchData();
       setAssignToast({

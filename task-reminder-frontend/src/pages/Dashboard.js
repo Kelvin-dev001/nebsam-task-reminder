@@ -27,7 +27,7 @@ const Dashboard = () => {
   // Fetch tasks
   const fetchTasks = async () => {
     const params = filterDate ? { date: filterDate } : {};
-    const res = await axios.get('http://localhost:5000/tasks/my', { params, withCredentials: true });
+    const res = await axios.get(`${process.env.REACT_APP_API_URL}/tasks/my`, { params, withCredentials: true });
     setTasks(res.data);
   };
 
@@ -36,7 +36,7 @@ const Dashboard = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const depRes = await axios.get('http://localhost:5000/departments/list', { withCredentials: true });
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/tasks/my`, { params, withCredentials: true });
         setDepartments(depRes.data);
         await fetchTasks();
       } finally {
@@ -51,7 +51,7 @@ const Dashboard = () => {
   const handleAddTask = async (e) => {
     e.preventDefault();
     setAdding(true);
-    await axios.post('http://localhost:5000/tasks/add', form, { withCredentials: true });
+    await axios.post('${process.env.REACT_APP_API_URL}/tasks/add', form, { withCredentials: true });
     setForm({ title: '', description: '', department: '' });
     setAdding(false);
     fetchTasks();
@@ -59,7 +59,7 @@ const Dashboard = () => {
 
   // Update Task status
   const handleUpdate = async (id, status) => {
-    await axios.patch(`http://localhost:5000/tasks/${id}/status`, { status }, { withCredentials: true });
+    await axios.patch(`${process.env.REACT_APP_API_URL}/tasks/${id}/status`, { status }, { withCredentials: true });
     fetchTasks();
   };
 
