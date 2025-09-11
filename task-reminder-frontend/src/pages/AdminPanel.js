@@ -57,14 +57,17 @@ const AdminPanel = () => {
   const fetchData = async () => {
     try {
       const [deptRes, usersRes, tasksRes] = await Promise.all([
-        axios.get('${process.env.REACT_APP_API_URL}/departments/list'),
-        axios.get('${process.env.REACT_APP_API_URL}/admin/users'),
-        axios.get('${process.env.REACT_APP_API_URL}/tasks/filter', { params: filters }),
+        axios.get(`${process.env.REACT_APP_API_URL}/departments/list`),
+        axios.get(`${process.env.REACT_APP_API_URL}/admin/users`),
+        axios.get(`${process.env.REACT_APP_API_URL}/tasks/filter`, { params: filters }),
       ]);
-      setDepartments(deptRes.data);
-      setUsers(usersRes.data);
-      setTasks(tasksRes.data);
+      setDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
+      setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
+      setTasks(Array.isArray(tasksRes.data) ? tasksRes.data : []);
     } catch (err) {
+      setDepartments([]);
+      setUsers([]);
+      setTasks([]);
       console.error("AdminPanel fetchData error:", err);
     }
   };
@@ -76,7 +79,7 @@ const AdminPanel = () => {
     e.preventDefault();
     setAddingDept(true);
     try {
-      await axios.post('${process.env.REACT_APP_API_URL}/departments/add', { name: newDept });
+      await axios.post(`${process.env.REACT_APP_API_URL}/departments/add`, { name: newDept });
       setNewDept('');
       fetchData();
     } catch (err) {
@@ -127,7 +130,7 @@ const AdminPanel = () => {
     e.preventDefault();
     setAssignLoading(true);
     try {
-      await axios.post('${process.env.REACT_APP_API_URL}/tasks/assign', assignForm);
+      await axios.post(`${process.env.REACT_APP_API_URL}/tasks/assign`, assignForm);
       handleAssignClose();
       fetchData();
       setAssignToast({
@@ -214,7 +217,7 @@ const AdminPanel = () => {
             </Box>
             <Divider sx={{ my: 3 }} />
             <Grid container spacing={2}>
-              {departments.map(dept => (
+              {Array.isArray(departments) && departments.map(dept => (
                 <Grid item xs={12} sm={6} key={dept._id}>
                   <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 2 }}>
                     <Typography fontWeight={600}>{dept.name}</Typography>
@@ -236,7 +239,7 @@ const AdminPanel = () => {
           <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Manage Users</Typography>
             <Grid container spacing={2}>
-              {users.map(u => (
+              {Array.isArray(users) && users.map(u => (
                 <Grid item xs={12} sm={6} key={u._id}>
                   <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 2 }}>
                     <Box>
@@ -301,7 +304,7 @@ const AdminPanel = () => {
                       onChange={handleAssignChange}
                     >
                       <MenuItem value="">Select</MenuItem>
-                      {departments.map(d => (
+                      {Array.isArray(departments) && departments.map(d => (
                         <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
                       ))}
                     </Select>
@@ -315,7 +318,7 @@ const AdminPanel = () => {
                       onChange={handleAssignChange}
                     >
                       <MenuItem value="">Select</MenuItem>
-                      {users.map(u => (
+                      {Array.isArray(users) && users.map(u => (
                         <MenuItem key={u._id} value={u._id}>{u.name}</MenuItem>
                       ))}
                     </Select>
@@ -358,7 +361,7 @@ const AdminPanel = () => {
                   onChange={e => setFilters({ ...filters, user: e.target.value })}
                 >
                   <MenuItem value="">All</MenuItem>
-                  {users.map(u => (
+                  {Array.isArray(users) && users.map(u => (
                     <MenuItem key={u._id} value={u._id}>{u.name}</MenuItem>
                   ))}
                 </Select>
@@ -371,7 +374,7 @@ const AdminPanel = () => {
                   onChange={e => setFilters({ ...filters, department: e.target.value })}
                 >
                   <MenuItem value="">All</MenuItem>
-                  {departments.map(d => (
+                  {Array.isArray(departments) && departments.map(d => (
                     <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
                   ))}
                 </Select>
@@ -389,7 +392,7 @@ const AdminPanel = () => {
               </Button>
             </Box>
             <Grid container spacing={3}>
-              {tasks.map(task => (
+              {Array.isArray(tasks) && tasks.map(task => (
                 <Grid item xs={12} sm={6} md={4} key={task._id}>
                   <TaskCard task={task} />
                 </Grid>
