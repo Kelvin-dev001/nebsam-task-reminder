@@ -2,7 +2,6 @@ import React, { useContext } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
-import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import AdminPanel from './pages/AdminPanel';
 import AdminLoginPage from './pages/AdminLoginPage';
@@ -27,7 +26,6 @@ function App() {
         <ToastContainer />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<Register />} />
           <Route path="/admin-login" element={<AdminLoginPage />} />
           <Route path="/change-password" element={
             <PrivateRoute>

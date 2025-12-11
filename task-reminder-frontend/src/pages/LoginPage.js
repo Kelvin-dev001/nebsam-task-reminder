@@ -2,7 +2,7 @@ import React, { useContext, useState } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
-  Button, TextField, Link, Grid, Box, Typography, Container, Snackbar,
+  Button, TextField, Grid, Box, Typography, Container, Snackbar,
   Paper, useMediaQuery, Alert
 } from '@mui/material';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
@@ -108,13 +108,6 @@ const LoginPage = () => {
             >
               {loading ? 'Logging in...' : 'Login'}
             </Button>
-            <Grid container justifyContent="center">
-              <Grid item>
-                <Link href="/register" variant="body2" underline="hover">
-                  Don't have an account? <b>Register</b>
-                </Link>
-              </Grid>
-            </Grid>
           </Box>
         </Box>
       </Paper>
