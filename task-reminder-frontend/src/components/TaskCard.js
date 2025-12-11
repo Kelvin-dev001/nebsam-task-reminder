@@ -4,25 +4,31 @@ import {
 } from '@mui/material';
 import DoneIcon from '@mui/icons-material/Done';
 import PendingActionsIcon from '@mui/icons-material/PendingActions';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const statusColor = {
   pending: "warning",
-  done: "info"
+  done: "info",
+  "in-progress": "primary",
+  approved: "success"
 };
 
 const statusIcon = {
   pending: <PendingActionsIcon fontSize="small" color="warning" />,
-  done: <DoneIcon fontSize="small" color="info" />
+  done: <DoneIcon fontSize="small" color="info" />,
+  "in-progress": <PendingActionsIcon fontSize="small" color="primary" />,
+  approved: <DoneIcon fontSize="small" color="success" />
 };
 
-const TaskCard = ({ task, onUpdate }) => (
+const TaskCard = ({ task, onUpdate, onEdit, onDelete }) => (
   <Card
     elevation={4}
     sx={{
       borderRadius: 3,
       bgcolor: "#f5faff",
       position: "relative",
-      minHeight: 230,
+      minHeight: 250,
       display: "flex",
       flexDirection: "column"
     }}
@@ -41,24 +47,57 @@ const TaskCard = ({ task, onUpdate }) => (
       <Typography variant="body2" sx={{ mb: 0.5 }}>
         <b>Assigned To:</b> {task.assignedTo?.name || task.assignedTo?.email}
       </Typography>
+      {task.assignedBy && (
+        <Typography variant="body2" sx={{ mb: 0.5 }}>
+          <b>Assigned By:</b> {task.assignedBy?.name || task.assignedBy?.email}
+        </Typography>
+      )}
       <Typography variant="body2" sx={{ mb: 0.5 }}>
         <b>Deadline:</b> {task.deadline ? new Date(task.deadline).toLocaleDateString() : "No deadline"}
       </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+      <Box sx={{ display: "flex", alignItems: "center", mb: 1, flexWrap: 'wrap', gap: 1 }}>
         <Chip
           icon={statusIcon[task.status] || null}
-          label={task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+          label={task.status?.charAt(0).toUpperCase() + task.status?.slice(1)}
           color={statusColor[task.status] || "default"}
           variant="filled"
           size="small"
-          sx={{ mr: 1, fontWeight: 700 }}
+          sx={{ fontWeight: 700 }}
         />
         <Typography variant="caption" color="text.secondary">
           {new Date(task.createdAt).toLocaleString()}
         </Typography>
       </Box>
     </CardContent>
-    <CardActions sx={{ pt: 0, pb: 2, px: 2, justifyContent: "flex-end" }}>
+    <CardActions sx={{ pt: 0, pb: 2, px: 2, justifyContent: "flex-end", gap: 1 }}>
+      {onEdit && (
+        <Tooltip title="Edit task">
+          <Button
+            onClick={onEdit}
+            variant="outlined"
+            color="primary"
+            size="small"
+            startIcon={<EditIcon />}
+            sx={{ borderRadius: 2 }}
+          >
+            Edit
+          </Button>
+        </Tooltip>
+      )}
+      {onDelete && (
+        <Tooltip title="Delete task">
+          <Button
+            onClick={onDelete}
+            variant="outlined"
+            color="error"
+            size="small"
+            startIcon={<DeleteIcon />}
+            sx={{ borderRadius: 2 }}
+          >
+            Delete
+          </Button>
+        </Tooltip>
+      )}
       {onUpdate && task.status === 'pending' && (
         <Tooltip title="Mark this task as done">
           <Button
