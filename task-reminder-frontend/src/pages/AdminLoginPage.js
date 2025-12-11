@@ -14,9 +14,14 @@ const AdminLoginPage = () => {
     e.preventDefault();
     setError('');
     try {
-      const user = await adminLogin(email, password);
-      if (user && user.role === 'admin') {
-        navigate('/admin');
+      const data = await adminLogin(email, password);
+      const user = data.user;
+      if (user && (user.role === 'admin' || user.role === 'superuser')) {
+        if (user.requiresPasswordChange) {
+          navigate('/change-password');
+        } else {
+          navigate('/admin');
+        }
       } else {
         setError('You do not have admin privileges.');
       }

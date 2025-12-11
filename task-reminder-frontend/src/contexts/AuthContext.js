@@ -21,24 +21,34 @@ export const AuthProvider = ({ children }) => {
     });
   }, []);
 
-  // LOGIN
+  // LOGIN (all roles)
   const login = async (email, password) => {
     const res = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, { email, password });
     setUser(res.data.user);
     setToken(res.data.token);
     localStorage.setItem('user', JSON.stringify(res.data.user));
     localStorage.setItem('token', res.data.token);
-    return res.data.user;
+    return res.data;
   };
 
-  // ADMIN LOGIN
+  // ADMIN LOGIN (same endpoint, but we can keep for clarity)
   const adminLogin = async (email, password) => {
     const res = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, { email, password });
     setUser(res.data.user);
     setToken(res.data.token);
     localStorage.setItem('user', JSON.stringify(res.data.user));
     localStorage.setItem('token', res.data.token);
-    return res.data.user;
+    return res.data;
+  };
+
+  // CHANGE PASSWORD
+  const changePassword = async (oldPassword, newPassword) => {
+    const res = await axios.post(`${process.env.REACT_APP_API_URL}/auth/change-password`, { oldPassword, newPassword });
+    // After changing password, clear the requiresPasswordChange flag locally
+    const updatedUser = { ...user, requiresPasswordChange: false };
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    return res.data;
   };
 
   // LOGOUT (JWT: just clear local storage)
@@ -50,7 +60,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, adminLogin, logout }}>
+    <AuthContext.Provider value={{ user, token, login, adminLogin, changePassword, logout }}>
       {children}
     </AuthContext.Provider>
   );

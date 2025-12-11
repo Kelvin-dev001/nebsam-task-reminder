@@ -7,10 +7,10 @@ import {
 } from '@mui/material';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import { useTheme } from '@mui/material/styles';
-import logo from '../assets/logo.png'; // Update path if needed
+import logo from '../assets/logo.png';
 
 const LoginPage = () => {
-  const { login } = useContext(AuthContext); // <--- Use login from context
+  const { login } = useContext(AuthContext);
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [snack, setSnack] = useState({ open: false, message: '', severity: "success" });
@@ -18,7 +18,6 @@ const LoginPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  // Handle local login (email/password)
   const handleInputChange = e => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -28,9 +27,15 @@ const LoginPage = () => {
     setLoading(true);
     setSnack({ open: false, message: '', severity: "success" });
     try {
-      const user = await login(form.email, form.password); // <--- Use context login()
+      const data = await login(form.email, form.password);
       setSnack({ open: true, message: "Login successful! 🎉", severity: "success" });
-      setTimeout(() => navigate('/'), 1200);
+      setTimeout(() => {
+        if (data.user.requiresPasswordChange) {
+          navigate('/change-password');
+        } else {
+          navigate('/');
+        }
+      }, 800);
     } catch (err) {
       setSnack({
         open: true,
