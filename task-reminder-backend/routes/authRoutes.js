@@ -3,10 +3,19 @@ const router = express.Router();
 const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { isAuthenticated, isSuperuser } = require('../middleware/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
-// --- REGISTER ---
+function signUser(user) {
+  return jwt.sign(
+    { _id: user._id, name: user.name, email: user.email, role: user.role },
+    JWT_SECRET,
+    { expiresIn: '2h' }
+  );
+}
+
+// --- REGISTER (public) ---
 router.post('/register', async (req, res) => {
   const { name, email, password } = req.body;
   try {
@@ -19,7 +28,8 @@ router.post('/register', async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      role: 'user'
+      role: 'user',
+      requiresPasswordChange: true // force first change
     });
 
     if (!user) return res.status(500).json({ error: 'Could not create user.' });
@@ -30,7 +40,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// --- USER LOGIN ---
+// --- USER/ADMIN/SUPERUSER LOGIN ---
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -38,46 +48,82 @@ router.post('/login', async (req, res) => {
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
-    const token = jwt.sign(
-      { _id: user._id, name: user.name, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '2h' }
-    );
-    res.json({ token, user: { _id: user._id, name: user.name, email: user.email, role: user.role } });
+
+    const token = signUser(user);
+    res.json({
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        requiresPasswordChange: user.requiresPasswordChange
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: 'Login failed' });
   }
 });
 
-// --- ADMIN LOGIN ---
-router.post('/admin-login', async (req, res) => {
-  const { email, password } = req.body;
+// --- CHANGE PASSWORD (authenticated) ---
+router.post('/change-password', isAuthenticated, async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
   try {
-    const user = await User.findOne({ email });
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ error: "Admin not found or not authorized" });
-    }
-    const valid = await bcrypt.compare(password, user.password);
-    if (!valid) {
-      return res.status(401).json({ error: "Invalid password" });
-    }
-    const token = jwt.sign(
-      { _id: user._id, name: user.name, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '2h' }
-    );
-    res.json({ token, user: { _id: user._id, name: user.name, email: user.email, role: user.role } });
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const valid = await bcrypt.compare(oldPassword, user.password);
+    if (!valid) return res.status(401).json({ error: 'Old password incorrect' });
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.requiresPasswordChange = false;
+    await user.save();
+
+    res.json({ message: 'Password updated' });
   } catch (err) {
-    res.status(500).json({ error: 'Admin login failed' });
+    res.status(500).json({ error: 'Password change failed' });
   }
 });
 
-// --- LOGOUT (Frontend deletes token, nothing to do on backend for stateless JWT) ---
+// --- SUPERUSER: CREATE USER WITH ROLE ---
+router.post('/super/create-user', isAuthenticated, isSuperuser, async (req, res) => {
+  const { name, email, role = 'user' } = req.body;
+  if (!['user', 'admin', 'superuser'].includes(role)) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+  try {
+    let existing = await User.findOne({ email });
+    if (existing) return res.status(400).json({ error: 'Email already exists' });
+
+    const username = email.split('@')[0];
+    const tempPassword = Math.random().toString(36).slice(-10);
+
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    const user = await User.create({
+      name,
+      email,
+      username,
+      password: hashedPassword,
+      role,
+      requiresPasswordChange: true
+    });
+
+    // TODO: send tempPassword via email using a mailer service (recommended)
+    res.status(201).json({
+      message: 'User created',
+      credentials: { email: user.email, username: user.username, tempPassword, role: user.role }
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+// --- LOGOUT (stateless JWT) ---
 router.post('/logout', (req, res) => {
   res.json({ message: 'Logged out (client must delete token)' });
 });
 
-// --- SESSION CHECK (JWT-based: expects token in Authorization header) ---
+// --- SESSION CHECK ---
 router.get('/session', (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ user: null });

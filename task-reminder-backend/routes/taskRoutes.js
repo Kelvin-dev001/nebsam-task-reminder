@@ -6,7 +6,7 @@ const {
   assignTask,
   filterTasks
 } = require('../controllers/taskController');
-const { isAuthenticated, isAdmin } = require('../middleware/auth');
+const { isAuthenticated, isAdminOrSuperuser } = require('../middleware/auth');
 const Task = require('../models/Task');
 const router = express.Router();
 
@@ -15,9 +15,9 @@ router.post('/add', isAuthenticated, createTask);
 router.get('/my', isAuthenticated, getUserTasks);
 router.patch('/:id/status', isAuthenticated, updateTaskStatus);
 
-// Admin routes
-router.post('/assign', isAuthenticated, isAdmin, assignTask); // <-- Ensure this is present!
-router.get('/filter', isAuthenticated, isAdmin, filterTasks);
+// Admin/superuser routes
+router.post('/assign', isAuthenticated, isAdminOrSuperuser, assignTask);
+router.get('/filter', isAuthenticated, isAdminOrSuperuser, filterTasks);
 
 // Toast/Notification reminders route
 router.get('/reminders', isAuthenticated, async (req, res) => {
