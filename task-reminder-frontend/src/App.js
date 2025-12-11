@@ -8,6 +8,7 @@ import AdminPanel from './pages/AdminPanel';
 import AdminLoginPage from './pages/AdminLoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import SuperuserPanel from './pages/SuperuserPanel';
+import SuperuserLoginPage from './pages/SuperuserLoginPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -29,6 +30,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin-login" element={<AdminLoginPage />} />
+          <Route path="/super-login" element={<SuperuserLoginPage />} />
           <Route path="/change-password" element={
             <PrivateRoute>
               <ChangePasswordPage />

@@ -25,7 +25,7 @@ const LandingPage = () => {
             color="primary"
             size="large"
             startIcon={<SecurityIcon />}
-            onClick={() => navigate('/super')}
+            onClick={() => navigate('/super-login')}
           >
             Superuser Portal
           </Button>
