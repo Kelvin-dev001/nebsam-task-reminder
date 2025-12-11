@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import AdminPanel from './pages/AdminPanel';
@@ -25,6 +26,7 @@ function App() {
       <Router>
         <ToastContainer />
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin-login" element={<AdminLoginPage />} />
           <Route path="/change-password" element={
@@ -32,7 +34,7 @@ function App() {
               <ChangePasswordPage />
             </PrivateRoute>
           } />
-          <Route path="/" element={
+          <Route path="/user" element={
             <PrivateRoute>
               <Dashboard />
             </PrivateRoute>

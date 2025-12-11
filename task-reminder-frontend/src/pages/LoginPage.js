@@ -33,7 +33,7 @@ const LoginPage = () => {
         if (data.user.requiresPasswordChange) {
           navigate('/change-password');
         } else {
-          navigate('/');
+          navigate('/user'); // go to user dashboard after login
         }
       }, 800);
     } catch (err) {
