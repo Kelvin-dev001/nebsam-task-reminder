@@ -11,7 +11,6 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB Connected'))
   .catch(err => console.error('MongoDB Error:', err));
 
-//  Update CORS to allow Vercel frontend domain 
 app.use(cors({
   origin: [
     'http://localhost:3000',
@@ -22,15 +21,13 @@ app.use(cors({
 
 app.use(express.json());
 app.use(cookieParser());
-
-// REMOVE session and passport setup 
-
 app.use(attachUser);
 
 app.use('/auth', require('./routes/authRoutes'));
 app.use('/departments', require('./routes/departmentRoutes'));
 app.use('/tasks', require('./routes/taskRoutes'));
 app.use('/admin', require('./routes/adminRoutes'));
+app.use('/memos', require('./routes/memoRoutes'));
 
 app.get('/', (req, res) => res.send('Task Reminder API Running'));
 
