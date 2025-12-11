@@ -4,14 +4,14 @@ const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const router = express.Router();
 
-// List users (admin or superuser)
-router.get('/users', isAdminOrSuperuser, async (req, res) => {
+// List users (admin needs this to assign tasks; superuser also)
+router.get('/users', isAdminOrSuperuser, async (_req, res) => {
   const users = await User.find({}, '_id name email role requiresPasswordChange username');
   res.json(users);
 });
 
-// Superuser creates user (optional duplicate of /auth/super/create-user)
-router.post('/users', isAdminOrSuperuser, async (req, res) => {
+// Create users — superuser only
+router.post('/users', isSuperuser, async (req, res) => {
   const { name, email, role = 'user' } = req.body;
   if (!['user', 'admin', 'superuser'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });

@@ -8,7 +8,9 @@ exports.createTask = async (req, res) => {
       title,
       description,
       department,
-      assignedTo: req.user._id // Now uses assignedTo field
+      assignedTo: req.user._id,
+      assignedBy: req.user._id, // user creates for themselves
+      status: 'pending'
     });
     res.status(201).json(task);
   } catch (err) {
@@ -48,7 +50,7 @@ exports.getUserTasks = async (req, res) => {
   }
 };
 
-// For admin to assign tasks to users
+// For admin/superuser to assign tasks
 exports.assignTask = async (req, res) => {
   try {
     const { title, description, department, assignedTo, deadline } = req.body;
@@ -57,12 +59,13 @@ exports.assignTask = async (req, res) => {
       description,
       department,
       assignedTo,
+      assignedBy: req.user._id,
       deadline,
       status: 'pending'
     });
-    // Populate assignedTo and department before sending response
     const populatedTask = await Task.findById(task._id)
-      .populate('assignedTo', 'name email')
+      .populate('assignedTo', 'name email role')
+      .populate('assignedBy', 'name email role')
       .populate('department', 'name');
     res.status(201).json(populatedTask);
   } catch (err) {
@@ -70,7 +73,7 @@ exports.assignTask = async (req, res) => {
   }
 };
 
-// For admin to filter/search tasks (unchanged except field name)
+// For admin/superuser to filter/search tasks
 exports.filterTasks = async (req, res) => {
   try {
     const { user, department, date } = req.query;
@@ -83,8 +86,43 @@ exports.filterTasks = async (req, res) => {
       end.setHours(23, 59, 59, 999);
       filter.createdAt = { $gte: start, $lte: end };
     }
-    const tasks = await Task.find(filter).populate('department assignedTo');
+    // RBAC: admin only sees tasks they assigned; superuser sees all
+    if (req.user.role === 'admin') {
+      filter.assignedBy = req.user._id;
+    }
+    const tasks = await Task.find(filter).populate('department assignedTo assignedBy');
     res.json(tasks);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// For admin/superuser to edit a task
+exports.updateTask = async (req, res) => {
+  try {
+    const updates = req.body;
+    const filter = { _id: req.params.id };
+    if (req.user.role === 'admin') {
+      filter.assignedBy = req.user._id; // admin can only edit tasks they assigned
+    }
+    const task = await Task.findOneAndUpdate(filter, updates, { new: true }).populate('department assignedTo assignedBy');
+    if (!task) return res.status(404).json({ message: 'Task not found or not permitted' });
+    res.json(task);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// For admin/superuser to delete a task
+exports.deleteTask = async (req, res) => {
+  try {
+    const filter = { _id: req.params.id };
+    if (req.user.role === 'admin') {
+      filter.assignedBy = req.user._id; // admin can only delete tasks they assigned
+    }
+    const task = await Task.findOneAndDelete(filter);
+    if (!task) return res.status(404).json({ message: 'Task not found or not permitted' });
+    res.json({ message: 'Task deleted' });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
