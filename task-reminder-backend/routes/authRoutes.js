@@ -75,22 +75,28 @@ router.post('/change-password', isAuthenticated, async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).select('+password');
     if (!user) return res.status(404).json({ error: 'User not found' });
-
-    if (!user.password) {
-      return res.status(500).json({ error: 'User has no password set' });
-    }
 
     const valid = await bcrypt.compare(oldPassword, user.password);
     if (!valid) return res.status(401).json({ error: 'Old password incorrect' });
 
-    user.password = await bcrypt.hash(newPassword, 10);
-    user.requiresPasswordChange = false;
-    user.otpHash = undefined;
-    user.otpExpiresAt = undefined;
-    user.otpAttempts = 0;
-    await user.save();
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    // Use updateOne to avoid revalidating missing phone/username on legacy users
+    await User.updateOne(
+      { _id: req.user._id },
+      {
+        $set: {
+          password: hashed,
+          requiresPasswordChange: false,
+          otpHash: undefined,
+          otpExpiresAt: undefined,
+          otpAttempts: 0
+        }
+      },
+      { runValidators: false }
+    );
 
     res.json({ message: 'Password updated' });
   } catch (err) {
