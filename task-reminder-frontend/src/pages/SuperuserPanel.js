@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 import TaskCard from '../components/TaskCard';
 import { AuthContext } from '../contexts/AuthContext';
 import {
@@ -31,7 +31,7 @@ const SuperuserPanel = () => {
 
   // Users
   const [users, setUsers] = useState([]);
-  const [userForm, setUserForm] = useState({ name: '', email: '', role: 'user' });
+  const [userForm, setUserForm] = useState({ name: '', email: '', phone: '', role: 'user' });
   const [editingUserId, setEditingUserId] = useState(null);
 
   // Tasks
@@ -58,10 +58,10 @@ const SuperuserPanel = () => {
   const fetchData = async () => {
     try {
       const [deptRes, usersRes, tasksRes, memosRes] = await Promise.all([
-        axios.get(`${process.env.REACT_APP_API_URL}/departments/list`),
-        axios.get(`${process.env.REACT_APP_API_URL}/admin/users`),
-        axios.get(`${process.env.REACT_APP_API_URL}/tasks/filter`, { params: filters }),
-        axios.get(`${process.env.REACT_APP_API_URL}/memos`)
+        api.get('/departments/list'),
+        api.get('/admin/users'),
+        api.get('/tasks/filter', { params: filters }),
+        api.get('/memos')
       ]);
       setDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
       setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
@@ -69,7 +69,7 @@ const SuperuserPanel = () => {
       setMemos(Array.isArray(memosRes.data) ? memosRes.data : []);
     } catch (err) {
       setDepartments([]); setUsers([]); setTasks([]); setMemos([]);
-      console.error("SuperuserPanel fetchData error:", err);
+      showToast(false, err.response?.data?.error || "Failed to load data");
     }
   };
 
@@ -82,28 +82,30 @@ const SuperuserPanel = () => {
   const handleAddDept = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/departments/add`, { name: newDept });
+      await api.post('/departments/add', { name: newDept });
       setNewDept('');
       fetchData();
       showToast(true, "Department added");
-    } catch (err) { showToast(false, "Failed to add department"); }
+    } catch (err) { showToast(false, err.response?.data?.error || "Failed to add department"); }
   };
 
   const handleUpdateDept = async () => {
     try {
-      await axios.put(`${process.env.REACT_APP_API_URL}/departments/${editingDept._id}`, { name: editingDept.name });
+      await api.put(`/departments/${editingDept._id}`, { name: editingDept.name });
       setEditingDept(null);
       fetchData();
       showToast(true, "Department updated");
-    } catch (err) { showToast(false, "Failed to update department"); }
+    } catch (err) { showToast(false, err.response?.data?.error || "Failed to update department"); }
   };
 
   const handleDeleteDept = async (id) => {
     try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/departments/${id}`);
+      await api.delete(`/departments/${id}`);
       fetchData();
       showToast(true, "Department deleted");
-    } catch (err) { showToast(false, "Failed to delete department"); }
+    } catch (err) {
+      showToast(false, err.response?.data?.error || "Failed to delete department");
+    }
   };
 
   // Users
@@ -111,13 +113,13 @@ const SuperuserPanel = () => {
     e.preventDefault();
     try {
       if (editingUserId) {
-        await axios.patch(`${process.env.REACT_APP_API_URL}/admin/users/${editingUserId}`, userForm);
+        await api.patch(`/admin/users/${editingUserId}`, userForm);
         showToast(true, "User updated");
       } else {
-        await axios.post(`${process.env.REACT_APP_API_URL}/auth/super/create-user`, userForm);
-        showToast(true, "User created (temp password returned by API)");
+        await api.post('/auth/super/create-user', userForm);
+        showToast(true, "User created. OTP sent via SMS (if configured).");
       }
-      setUserForm({ name: '', email: '', role: 'user' });
+      setUserForm({ name: '', email: '', phone: '', role: 'user' });
       setEditingUserId(null);
       fetchData();
     } catch (err) {
@@ -127,7 +129,7 @@ const SuperuserPanel = () => {
 
   const handleDeleteUser = async (id) => {
     try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/admin/users/${id}`);
+      await api.delete(`/admin/users/${id}`);
       fetchData();
       showToast(true, "User deleted");
     } catch (err) {
@@ -139,7 +141,7 @@ const SuperuserPanel = () => {
   const handleAssignTask = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/tasks/assign`, assignForm);
+      await api.post('/tasks/assign', assignForm);
       setAssignOpen(false);
       setAssignForm({ title: '', description: '', department: '', assignedTo: '', deadline: '', status: 'pending' });
       fetchData();
@@ -152,7 +154,7 @@ const SuperuserPanel = () => {
   const handleUpdateTask = async (e) => {
     e.preventDefault();
     try {
-      await axios.patch(`${process.env.REACT_APP_API_URL}/tasks/${editingTask._id}`, editingTask);
+      await api.patch(`/tasks/${editingTask._id}`, editingTask);
       setEditingTask(null);
       fetchData();
       showToast(true, "Task updated");
@@ -163,7 +165,7 @@ const SuperuserPanel = () => {
 
   const handleDeleteTask = async (id) => {
     try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/tasks/${id}`);
+      await api.delete(`/tasks/${id}`);
       fetchData();
       showToast(true, "Task deleted");
     } catch (err) {
@@ -175,7 +177,7 @@ const SuperuserPanel = () => {
   const handleCreateMemo = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/memos`, memoForm);
+      await api.post('/memos', memoForm);
       setMemoForm({ title: '', message: '' });
       fetchData();
       showToast(true, "Memo broadcasted");
@@ -228,6 +230,7 @@ const SuperuserPanel = () => {
             <Box component="form" onSubmit={handleCreateOrUpdateUser} sx={{ display: 'flex', gap: 2, flexDirection: isMobile ? "column" : "row", flexWrap: 'wrap' }}>
               <TextField label="Full Name" value={userForm.name} onChange={e => setUserForm({ ...userForm, name: e.target.value })} required fullWidth />
               <TextField label="Email" type="email" value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })} required fullWidth />
+              <TextField label="Phone (E.164, e.g., +15551234567)" value={userForm.phone} onChange={e => setUserForm({ ...userForm, phone: e.target.value })} required fullWidth />
               <FormControl sx={{ minWidth: 160 }}>
                 <InputLabel>Role</InputLabel>
                 <Select value={userForm.role} label="Role" onChange={e => setUserForm({ ...userForm, role: e.target.value })}>
@@ -240,7 +243,7 @@ const SuperuserPanel = () => {
                 {editingUserId ? "Update User" : "Create User"}
               </Button>
               {editingUserId && (
-                <Button variant="outlined" color="secondary" onClick={() => { setEditingUserId(null); setUserForm({ name: '', email: '', role: 'user' }); }}>
+                <Button variant="outlined" color="secondary" onClick={() => { setEditingUserId(null); setUserForm({ name: '', email: '', phone: '', role: 'user' }); }}>
                   Cancel Edit
                 </Button>
               )}
@@ -261,7 +264,7 @@ const SuperuserPanel = () => {
                       )}
                     </Box>
                     <Box>
-                      <IconButton color="primary" onClick={() => { setEditingUserId(u._id); setUserForm({ name: u.name, email: u.email, role: u.role }); }}>
+                      <IconButton color="primary" onClick={() => { setEditingUserId(u._id); setUserForm({ name: u.name, email: u.email, phone: '', role: u.role }); }}>
                         <EditIcon />
                       </IconButton>
                       <IconButton color="error" onClick={() => handleDeleteUser(u._id)}>
@@ -469,7 +472,7 @@ const SuperuserPanel = () => {
           <FormControl fullWidth>
             <InputLabel>Assign To</InputLabel>
             <Select value={editingTask?.assignedTo || ''} label="Assign To" onChange={e => setEditingTask({ ...editingTask, assignedTo: e.target.value })}>
-              <MenuItem value="">Select</MenuItem>
+            <MenuItem value="">Select</MenuItem>
               {users.map(u => <MenuItem key={u._id} value={u._id}>{u.name}</MenuItem>)}
             </Select>
           </FormControl>
