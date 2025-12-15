@@ -8,25 +8,42 @@ const { isAuthenticated, isSuperuser } = require('../middleware/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
-// SMS provider env vars (configure these in your backend environment)
-const SMS_API_URL = process.env.SMS_API_URL;       // e.g., https://api.yoursms.com/send
-const SMS_API_KEY = process.env.SMS_API_KEY;       // your provider API key / access key
-const SMS_CLIENT_ID = process.env.SMS_CLIENT_ID;   // your provider client id
-const SMS_FROM = process.env.SMS_FROM || '';       // optional sender id/number
+// Onfon SMS env vars
+const SMS_API_URL = process.env.SMS_API_URL || 'https://api.onfonmedia.co.ke/v1/sms/SendBulkSMS';
+const SMS_API_KEY = process.env.SMS_API_KEY;          // ApiKey in body
+const SMS_CLIENT_ID = process.env.SMS_CLIENT_ID;      // ClientId in body
+const SMS_ACCESS_KEY = process.env.SMS_ACCESS_KEY;    // Accesskey header (same as client id per provider note)
+const SMS_FROM = process.env.SMS_FROM || '';          // SenderId
+
+// Ensure MSISDN format 254XXXXXXXXX
+function formatMsisdn(num) {
+  if (!num) return '';
+  let n = num.trim();
+  if (n.startsWith('+')) n = n.slice(1);
+  if (n.startsWith('0')) n = '254' + n.slice(1);
+  if (!n.startsWith('254')) n = '254' + n.replace(/^254/, '');
+  return n;
+}
 
 async function sendOtpSms({ to, code }) {
   if (!SMS_API_URL || !SMS_API_KEY || !SMS_CLIENT_ID) {
     console.warn('SMS not configured; skipping OTP send.');
     return;
   }
-  // Adjust payload/headers to match your provider’s API spec if different
-  await axios.post(SMS_API_URL, {
-    client_id: SMS_CLIENT_ID,
-    api_key: SMS_API_KEY,
-    to,
-    message: `Your NEBSAM OTP is ${code}. Expires in 15 minutes.`,
-    from: SMS_FROM || undefined
-  });
+  const msisdn = formatMsisdn(to);
+  const payload = {
+    SenderId: SMS_FROM || 'NEBSAM', // fallback sender id
+    MessageParameters: [
+      { Number: msisdn, Text: `Your NEBSAM OTP is ${code}. Expires in 15 minutes.` }
+    ],
+    ApiKey: SMS_API_KEY,
+    ClientId: SMS_CLIENT_ID
+  };
+  const headers = {
+    Accesskey: SMS_ACCESS_KEY || SMS_CLIENT_ID,
+    'Content-Type': 'application/json'
+  };
+  await axios.post(SMS_API_URL, payload, { headers });
 }
 
 function signUser(user) {
