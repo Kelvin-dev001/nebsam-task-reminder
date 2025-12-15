@@ -12,10 +12,10 @@ import SuperuserLoginPage from './pages/SuperuserLoginPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const PrivateRoute = ({ children, adminOnly, superOnly }) => {
+const PrivateRoute = ({ children, adminOnly, superOnly, allowChangePassword = false }) => {
   const { user } = useContext(AuthContext);
   if (!user) return <Navigate to="/login" />;
-  if (user.requiresPasswordChange) return <Navigate to="/change-password" />;
+  if (user.requiresPasswordChange && !allowChangePassword) return <Navigate to="/change-password" />;
   if (superOnly && user.role !== 'superuser') return <Navigate to="/" />;
   if (adminOnly && !['admin', 'superuser'].includes(user.role)) return <Navigate to="/" />;
   return children;
@@ -32,7 +32,7 @@ function App() {
           <Route path="/admin-login" element={<AdminLoginPage />} />
           <Route path="/super-login" element={<SuperuserLoginPage />} />
           <Route path="/change-password" element={
-            <PrivateRoute>
+            <PrivateRoute allowChangePassword={true}>
               <ChangePasswordPage />
             </PrivateRoute>
           } />
