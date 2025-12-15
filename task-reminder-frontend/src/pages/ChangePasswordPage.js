@@ -19,19 +19,33 @@ const ChangePasswordPage = () => {
       setSnack({ open: true, message: 'Passwords do not match', severity: 'error' });
       return;
     }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setSnack({ open: true, message: 'Not authenticated. Please log in again.', severity: 'error' });
+      return;
+    }
+
     setLoading(true);
     try {
-      await api.post('/auth/change-password', {
-        oldPassword: form.oldPassword,
-        newPassword: form.newPassword
-      });
+      await api.post(
+        '/auth/change-password',
+        { oldPassword: form.oldPassword, newPassword: form.newPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
       // Mark requiresPasswordChange=false locally so routing stops redirecting
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
       localStorage.setItem('user', JSON.stringify({ ...storedUser, requiresPasswordChange: false }));
+
       setSnack({ open: true, message: 'Password updated. Redirecting...', severity: 'success' });
       setTimeout(() => navigate(user?.role === 'superuser' ? '/super' : '/user'), 800);
     } catch (err) {
-      setSnack({ open: true, message: err.response?.data?.error || 'Failed to change password', severity: 'error' });
+      setSnack({
+        open: true,
+        message: err.response?.data?.error || 'Failed to change password',
+        severity: 'error'
+      });
     } finally {
       setLoading(false);
     }
