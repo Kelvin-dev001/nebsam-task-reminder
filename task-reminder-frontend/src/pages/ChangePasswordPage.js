@@ -1,69 +1,85 @@
-import React, { useContext, useState } from 'react';
-import { AuthContext } from '../contexts/AuthContext';
+import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Paper, Box, TextField, Typography, Button, Alert } from '@mui/material';
+import { Box, Paper, Typography, TextField, Button, Snackbar, Alert } from '@mui/material';
+import api from '../api';
+import { AuthContext } from '../contexts/AuthContext';
 
 const ChangePasswordPage = () => {
-  const { changePassword, logout } = useContext(AuthContext);
-  const [form, setForm] = useState({ oldPassword: '', newPassword: '', confirm: '' });
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [form, setForm] = useState({ oldPassword: '', newPassword: '', confirm: '' });
+  const [loading, setLoading] = useState(false);
+  const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' });
+
+  const handleClose = () => setSnack({ ...snack, open: false });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
     if (form.newPassword !== form.confirm) {
-      setError('Passwords do not match');
+      setSnack({ open: true, message: 'Passwords do not match', severity: 'error' });
       return;
     }
+    setLoading(true);
     try {
-      await changePassword(form.oldPassword, form.newPassword);
-      setSuccess('Password updated. Please log in again.');
-      logout();
-      setTimeout(() => navigate('/login'), 800);
+      await api.post('/auth/change-password', {
+        oldPassword: form.oldPassword,
+        newPassword: form.newPassword
+      });
+      // Mark requiresPasswordChange=false locally so routing stops redirecting
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      localStorage.setItem('user', JSON.stringify({ ...storedUser, requiresPasswordChange: false }));
+      setSnack({ open: true, message: 'Password updated. Redirecting...', severity: 'success' });
+      setTimeout(() => navigate(user?.role === 'superuser' ? '/super' : '/user'), 800);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to change password');
+      setSnack({ open: true, message: err.response?.data?.error || 'Failed to change password', severity: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Container maxWidth="sm" sx={{ minHeight: "100vh", display: "flex", alignItems: "center" }}>
-      <Paper sx={{ p: 4, borderRadius: 3, width: "100%" }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>Change Password</Typography>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#e3ecfa', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
+      <Paper sx={{ p: 4, width: '100%', maxWidth: 420, borderRadius: 3 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Change Password</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          You must change your temporary password before proceeding.
+          Please set a new password to continue.
         </Typography>
         <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
-            type="password"
             label="Old Password"
+            type="password"
             value={form.oldPassword}
-            onChange={(e) => setForm({ ...form, oldPassword: e.target.value })}
+            onChange={e => setForm({ ...form, oldPassword: e.target.value })}
             required
+            fullWidth
           />
           <TextField
-            type="password"
             label="New Password"
+            type="password"
             value={form.newPassword}
-            onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
+            onChange={e => setForm({ ...form, newPassword: e.target.value })}
             required
-            inputProps={{ minLength: 8 }}
+            fullWidth
           />
           <TextField
-            type="password"
             label="Confirm New Password"
+            type="password"
             value={form.confirm}
-            onChange={(e) => setForm({ ...form, confirm: e.target.value })}
+            onChange={e => setForm({ ...form, confirm: e.target.value })}
             required
+            fullWidth
           />
-          {error && <Alert severity="error">{error}</Alert>}
-          {success && <Alert severity="success">{success}</Alert>}
-          <Button variant="contained" type="submit">Update Password</Button>
+          <Button type="submit" variant="contained" color="primary" disabled={loading}>
+            {loading ? 'Updating...' : 'Update Password'}
+          </Button>
         </Box>
       </Paper>
-    </Container>
+      <Snackbar open={snack.open} autoHideDuration={4000} onClose={handleClose} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+        <Alert onClose={handleClose} severity={snack.severity} sx={{ fontWeight: 700 }}>
+          {snack.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 };
 
