@@ -34,12 +34,12 @@ const ChangePasswordPage = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Mark requiresPasswordChange=false locally so routing stops redirecting
+      // Mark requiresPasswordChange=false locally
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
       localStorage.setItem('user', JSON.stringify({ ...storedUser, requiresPasswordChange: false }));
 
-      setSnack({ open: true, message: 'Password updated. Redirecting...', severity: 'success' });
-      setTimeout(() => navigate(user?.role === 'superuser' ? '/super' : '/user'), 800);
+      setSnack({ open: true, message: 'Password updated. Redirecting to login...', severity: 'success' });
+      setTimeout(() => navigate('/login'), 800); // redirect to login after success
     } catch (err) {
       setSnack({
         open: true,
