@@ -6,16 +6,21 @@ const router = express.Router();
 
 // List users (admin or superuser)
 router.get('/users', isAdminOrSuperuser, async (_req, res) => {
-  const users = await User.find({}, '_id name email role requiresPasswordChange username');
+  const users = await User.find({}, '_id name email phone role requiresPasswordChange username');
   res.json(users);
 });
 
 // Create users — superuser only
 router.post('/users', isSuperuser, async (req, res) => {
-  const { name, email, role = 'user' } = req.body;
+  const { name, email, phone, role = 'user' } = req.body;
+
+  if (!name || !email || !phone) {
+    return res.status(400).json({ error: 'Name, email, and phone are required' });
+  }
   if (!['user', 'admin', 'superuser'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
+
   try {
     let existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ error: 'Email already exists' });
@@ -27,6 +32,7 @@ router.post('/users', isSuperuser, async (req, res) => {
     const user = await User.create({
       name,
       email,
+      phone,
       username,
       password: hashedPassword,
       role,
@@ -42,18 +48,27 @@ router.post('/users', isSuperuser, async (req, res) => {
   }
 });
 
-// Update user (name/role/email) — superuser only
+// Update user (name/email/phone/role) — superuser only
 router.patch('/users/:id', isSuperuser, async (req, res) => {
-  const { name, email, role } = req.body;
+  const { name, email, phone, role } = req.body;
   if (role && !['user', 'admin', 'superuser'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
   try {
     const updates = {};
     if (name) updates.name = name;
-    if (email) updates.email = email;
+    if (email) {
+      updates.email = email;
+      updates.username = email.split('@')[0];
+    }
+    if (phone) updates.phone = phone;
     if (role) updates.role = role;
-    const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true, select: '_id name email role requiresPasswordChange username' });
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true, select: '_id name email phone role requiresPasswordChange username' }
+    );
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
   } catch (err) {
