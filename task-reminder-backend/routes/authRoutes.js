@@ -8,18 +8,18 @@ const { isAuthenticated, isSuperuser } = require('../middleware/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
-// SMS provider env vars (set these in your backend environment)
+// SMS provider env vars (configure these in your backend environment)
 const SMS_API_URL = process.env.SMS_API_URL;       // e.g., https://api.yoursms.com/send
-const SMS_API_KEY = process.env.SMS_API_KEY;       // your provider API key
+const SMS_API_KEY = process.env.SMS_API_KEY;       // your provider API key / access key
 const SMS_CLIENT_ID = process.env.SMS_CLIENT_ID;   // your provider client id
-const SMS_FROM = process.env.SMS_FROM || '';       // optional sender id/shortcode
+const SMS_FROM = process.env.SMS_FROM || '';       // optional sender id/number
 
 async function sendOtpSms({ to, code }) {
   if (!SMS_API_URL || !SMS_API_KEY || !SMS_CLIENT_ID) {
     console.warn('SMS not configured; skipping OTP send.');
     return;
   }
-  // Adapt payload to your provider’s API spec if different
+  // Adjust payload/headers to match your provider’s API spec if different
   await axios.post(SMS_API_URL, {
     client_id: SMS_CLIENT_ID,
     api_key: SMS_API_KEY,
@@ -37,13 +37,12 @@ function signUser(user) {
   );
 }
 
-// --- USER/ADMIN/SUPERUSER LOGIN (password = OTP on first login) ---
+// --- USER/ADMIN/SUPERUSER LOGIN (password can be the OTP on first login) ---
 router.post('/login', async (req, res) => {
   const { email, password } = req.body; // password field can be the OTP
   try {
     const user = await User.findOne({ email });
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
@@ -66,9 +65,22 @@ router.post('/login', async (req, res) => {
 // --- CHANGE PASSWORD (authenticated) ---
 router.post('/change-password', isAuthenticated, async (req, res) => {
   const { oldPassword, newPassword } = req.body;
+
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ error: 'Old password and new password are required' });
+  }
+
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (!user.password) {
+      return res.status(500).json({ error: 'User has no password set' });
+    }
 
     const valid = await bcrypt.compare(oldPassword, user.password);
     if (!valid) return res.status(401).json({ error: 'Old password incorrect' });
@@ -82,7 +94,8 @@ router.post('/change-password', isAuthenticated, async (req, res) => {
 
     res.json({ message: 'Password updated' });
   } catch (err) {
-    res.status(500).json({ error: 'Password change failed' });
+    console.error('Change password error:', err);
+    res.status(500).json({ error: err.message || 'Password change failed' });
   }
 });
 
@@ -122,7 +135,7 @@ router.post('/super/create-user', isAuthenticated, isSuperuser, async (req, res)
       await sendOtpSms({ to: phone, code: otp });
     } catch (smsErr) {
       console.error('Failed to send OTP SMS:', smsErr?.response?.data || smsErr.message || smsErr);
-      // Continue: user is created; OTP can be relayed securely by admin if SMS fails
+      // Continue; user is created; OTP can be relayed out-of-band if SMS fails
     }
 
     res.status(201).json({
