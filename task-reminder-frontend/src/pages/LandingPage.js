@@ -13,10 +13,10 @@ const LandingPage = () => {
       <Paper sx={{ p: 4, width: '100%', borderRadius: 3 }}>
         <Box sx={{ textAlign: 'center', mb: 3 }}>
           <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
-            NEBSAM Task Reminder
+            NEBSAM 411
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Choose your portal to continue
+            Choose your portal to continue 🎅
           </Typography>
         </Box>
         <Stack spacing={2}>
