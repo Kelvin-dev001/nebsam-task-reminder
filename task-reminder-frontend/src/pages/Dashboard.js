@@ -4,7 +4,9 @@ import TaskCard from '../components/TaskCard';
 import Notifications from '../components/Notifications';
 import { AuthContext } from '../contexts/AuthContext';
 import {
-  AppBar, Toolbar, Typography, IconButton, Box, Container, Grid, Paper, Button, TextField, MenuItem, Select, InputLabel, FormControl, useMediaQuery
+  AppBar, Toolbar, Typography, IconButton, Box, Container, Grid, Paper, Button,
+  TextField, MenuItem, Select, InputLabel, FormControl, useMediaQuery,
+  Dialog, DialogTitle, DialogContent, DialogActions, Stack
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import logo from '../assets/logo.png';
@@ -20,29 +22,41 @@ const Dashboard = () => {
   const [form, setForm] = useState({ title: '', description: '', department: '' });
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+
+  // Memos
+  const [unseenMemos, setUnseenMemos] = useState([]);
+  const [allMemos, setAllMemos] = useState([]);
+  const [memoModalOpen, setMemoModalOpen] = useState(false);
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const navigate = useNavigate();
+
+  const api = axios.create({
+    baseURL: process.env.REACT_APP_API_URL,
+    withCredentials: true
+  });
 
   // Fetch tasks
   const fetchTasks = async () => {
     const params = filterDate ? { date: filterDate } : {};
     try {
-      const res = await axios.get(`${process.env.REACT_APP_API_URL}/tasks/my`, { params, withCredentials: true });
+      const res = await api.get('/tasks/my', { params });
       setTasks(res.data);
     } catch (err) {
       setTasks([]);
     }
   };
 
-  // Fetch departments and tasks on mount or when filterDate changes
+  // Fetch departments, tasks, memos
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const depRes = await axios.get(`${process.env.REACT_APP_API_URL}/departments/list`, { withCredentials: true });
+        const depRes = await api.get('/departments/list');
         setDepartments(depRes.data);
         await fetchTasks();
+        await fetchMemos();
       } catch (err) {
         setDepartments([]);
         setTasks([]);
@@ -54,12 +68,53 @@ const Dashboard = () => {
     // eslint-disable-next-line
   }, [filterDate]);
 
+  // Poll unseen memos every 60s
+  useEffect(() => {
+    const interval = setInterval(fetchUnseenMemos, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchUnseenMemos = async () => {
+    try {
+      const res = await api.get('/memos/unseen');
+      setUnseenMemos(res.data || []);
+      if ((res.data || []).length) setMemoModalOpen(true);
+    } catch (err) {
+      // noop
+    }
+  };
+
+  const fetchMemos = async () => {
+    try {
+      const [unseenRes, allRes] = await Promise.all([
+        api.get('/memos/unseen'),
+        api.get('/memos')
+      ]);
+      setUnseenMemos(unseenRes.data || []);
+      setAllMemos(allRes.data || []);
+      if ((unseenRes.data || []).length) setMemoModalOpen(true);
+    } catch (err) {
+      setUnseenMemos([]);
+      setAllMemos([]);
+    }
+  };
+
+  const markMemoSeen = async (id) => {
+    try {
+      await api.post(`/memos/${id}/seen`);
+      setUnseenMemos(prev => prev.filter(m => m._id !== id));
+      if (unseenMemos.length <= 1) setMemoModalOpen(false);
+    } catch (err) {
+      // noop
+    }
+  };
+
   // Add Task
   const handleAddTask = async (e) => {
     e.preventDefault();
     setAdding(true);
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/tasks/add`, form, { withCredentials: true });
+      await api.post('/tasks/add', form);
       setForm({ title: '', description: '', department: '' });
       fetchTasks();
     } catch (err) {
@@ -72,7 +127,7 @@ const Dashboard = () => {
   // Update Task status
   const handleUpdate = async (id, status) => {
     try {
-      await axios.patch(`${process.env.REACT_APP_API_URL}/tasks/${id}/status`, { status }, { withCredentials: true });
+      await api.patch(`/tasks/${id}/status`, { status });
       fetchTasks();
     } catch (err) {
       // handle error as needed
@@ -130,6 +185,25 @@ const Dashboard = () => {
 
       <Container maxWidth="md" sx={{ mt: 4, pb: 6 }}>
         <Notifications user={user} />
+
+        {/* Memo list */}
+        <Paper elevation={2} sx={{ p: isMobile ? 2 : 3, mb: 3, borderRadius: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>Memos</Typography>
+          {allMemos.length === 0 && (
+            <Typography variant="body2" color="text.secondary">No memos yet.</Typography>
+          )}
+          <Stack spacing={1.5}>
+            {allMemos.map(m => (
+              <Paper key={m._id} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{m.title}</Typography>
+                <Typography variant="body2" sx={{ mt: 0.5, mb: 0.5 }}>{m.message}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  By: {m.createdBy?.name || m.createdBy?.email} — {new Date(m.createdAt).toLocaleString()}
+                </Typography>
+              </Paper>
+            ))}
+          </Stack>
+        </Paper>
 
         {/* Task Add Form */}
         <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mb: 4, borderRadius: 3 }}>
@@ -204,6 +278,33 @@ const Dashboard = () => {
           )}
         </Grid>
       </Container>
+
+      {/* Memo modal for unseen memos */}
+      <Dialog open={memoModalOpen && unseenMemos.length > 0} onClose={() => setMemoModalOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>New Memo</DialogTitle>
+        <DialogContent dividers>
+          {unseenMemos.map(m => (
+            <Box key={m._id} sx={{ mb: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>{m.title}</Typography>
+              <Typography variant="body2" sx={{ mt: 1, mb: 1 }}>{m.message}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                By: {m.createdBy?.name || m.createdBy?.email} — {new Date(m.createdAt).toLocaleString()}
+              </Typography>
+              <Box sx={{ mt: 1 }}>
+                <Button size="small" variant="outlined" onClick={() => markMemoSeen(m._id)}>
+                  Mark as read
+                </Button>
+              </Box>
+            </Box>
+          ))}
+          {unseenMemos.length === 0 && (
+            <Typography variant="body2" color="text.secondary">No new memos.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMemoModalOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
