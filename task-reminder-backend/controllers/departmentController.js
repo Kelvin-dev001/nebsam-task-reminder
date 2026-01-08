@@ -12,7 +12,7 @@ exports.addDepartment = async (req, res) => {
   }
 };
 
-// List (unchanged)
+// List
 exports.listDepartments = async (_req, res) => {
   try {
     const depts = await Department.find({});
@@ -35,7 +35,7 @@ exports.updateDepartment = async (req, res) => {
   }
 };
 
-// Delete (unchanged)
+// Delete
 exports.deleteDepartment = async (req, res) => {
   try {
     const dept = await Department.findByIdAndDelete(req.params.id);

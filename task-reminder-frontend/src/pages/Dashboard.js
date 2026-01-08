@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useContext } from 'react';
-import axios from 'axios';
+import api from '../api';
 import TaskCard from '../components/TaskCard';
 import Notifications from '../components/Notifications';
 import { AuthContext } from '../contexts/AuthContext';
 import ReportForm from '../components/forms/ReportForm';
 import {
   AppBar, Toolbar, Typography, IconButton, Box, Container, Grid, Paper, Button,
-  TextField, MenuItem, Select, InputLabel, FormControl, useMediaQuery,
-  Dialog, DialogTitle, DialogContent, DialogActions, Stack
+  TextField, Dialog, DialogTitle, DialogContent, DialogActions, Stack
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import logo from '../assets/logo.png';
@@ -29,18 +28,13 @@ const Dashboard = () => {
   const [memoModalOpen, setMemoModalOpen] = useState(false);
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMobile = useTheme().breakpoints.down("sm");
   const navigate = useNavigate();
-
-  const api = axios.create({
-    baseURL: process.env.REACT_APP_API_URL,
-    withCredentials: true
-  });
 
   const fetchTasks = async () => {
     const params = filterDate ? { date: filterDate } : {};
     try {
-      const res = await api.get('/tasks/my', { params });
+      const res = await api.get('/tasks/my', { params, withCredentials: true });
       setTasks(res.data);
     } catch (err) {
       setTasks([]);
@@ -49,7 +43,7 @@ const Dashboard = () => {
 
   const fetchUnseenMemos = async () => {
     try {
-      const res = await api.get('/memos/unseen');
+      const res = await api.get('/memos/unseen', { withCredentials: true });
       setUnseenMemos(res.data || []);
       if ((res.data || []).length) setMemoModalOpen(true);
     } catch (err) {
@@ -60,8 +54,8 @@ const Dashboard = () => {
   const fetchMemos = async () => {
     try {
       const [unseenRes, allRes] = await Promise.all([
-        api.get('/memos/unseen'),
-        api.get('/memos')
+        api.get('/memos/unseen', { withCredentials: true }),
+        api.get('/memos', { withCredentials: true })
       ]);
       setUnseenMemos(unseenRes.data || []);
       setAllMemos(allRes.data || []);
@@ -75,8 +69,8 @@ const Dashboard = () => {
   const fetchDepsAndShowrooms = async () => {
     try {
       const [depRes, shRes] = await Promise.all([
-        api.get('/departments/list'),
-        api.get('/showrooms/list')
+        api.get('/departments/list', { withCredentials: true }),
+        api.get('/showrooms/list', { withCredentials: true })
       ]);
       setDepartments(depRes.data || []);
       setShowrooms(shRes.data || []);
@@ -86,7 +80,6 @@ const Dashboard = () => {
     }
   };
 
-  // Initial load and when filterDate changes
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -108,7 +101,7 @@ const Dashboard = () => {
 
   const markMemoSeen = async (id) => {
     try {
-      await api.post(`/memos/${id}/seen`);
+      await api.post(`/memos/${id}/seen`, {}, { withCredentials: true });
       setUnseenMemos(prev => prev.filter(m => m._id !== id));
       if (unseenMemos.length <= 1) setMemoModalOpen(false);
     } catch (err) {
@@ -119,7 +112,7 @@ const Dashboard = () => {
   // Update Task status
   const handleUpdate = async (id, status) => {
     try {
-      await api.patch(`/tasks/${id}/status`, { status });
+      await api.patch(`/tasks/${id}/status`, { status }, { withCredentials: true });
       fetchTasks();
     } catch (err) {
       // handle error as needed
@@ -129,7 +122,7 @@ const Dashboard = () => {
   // Submit Daily Report
   const handleSubmitReport = async (payload) => {
     try {
-      await api.post('/reports', payload);
+      await api.post('/reports', payload, { withCredentials: true });
       // optionally toast success
     } catch (err) {
       // optionally toast error
@@ -146,7 +139,6 @@ const Dashboard = () => {
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#e3ecfa" }}>
-      {/* App Bar */}
       <AppBar position="static" color="primary" elevation={2}>
         <Toolbar>
           <Box sx={{ mr: 2, width: 40, height: 40 }}>
@@ -164,23 +156,8 @@ const Dashboard = () => {
         </Toolbar>
       </AppBar>
 
-      <Box sx={{
-        mt: 3,
-        mb: 2,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'row',
-      }}>
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 600,
-            color: 'primary.main',
-            textAlign: 'center',
-            mr: 1
-          }}
-        >
+      <Box sx={{ mt: 3, mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'row' }}>
+        <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main', textAlign: 'center', mr: 1 }}>
           Hi Cousins <span role="img" aria-label="waving hand">👋</span>
         </Typography>
       </Box>
