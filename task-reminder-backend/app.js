@@ -23,11 +23,17 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(attachUser);
 
+// Core routes
 app.use('/auth', require('./routes/authRoutes'));
 app.use('/departments', require('./routes/departmentRoutes'));
 app.use('/tasks', require('./routes/taskRoutes'));
 app.use('/admin', require('./routes/adminRoutes'));
 app.use('/memos', require('./routes/memoRoutes'));
+
+// Analytics + reports + showrooms (combined)
+app.use('/analytics', require('./routes/analyticsRoutes'));   // /analytics/daily, /analytics/trends, /analytics/submission-status
+app.use('/', require('./routes/dailyReports'));               // /reports
+app.use('/showrooms', require('./routes/showroomRoutes'));    // /showrooms/list
 
 app.get('/', (req, res) => res.send('Task Reminder API Running'));
 
