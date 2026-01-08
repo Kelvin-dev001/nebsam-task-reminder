@@ -41,7 +41,7 @@ const SuperuserPanel = () => {
   const [editingUserId, setEditingUserId] = useState(null);
 
   // Departments CRUD
-  const [newDept, setNewDept] = useState('');
+  const [newDept, setNewDept] = useState({ name: '', code: '' });
   const [editingDept, setEditingDept] = useState(null);
 
   // Tasks
@@ -109,8 +109,8 @@ const SuperuserPanel = () => {
   const handleAddDept = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/departments/add', { name: newDept });
-      setNewDept('');
+      await api.post('/departments/add', { name: newDept.name, code: newDept.code });
+      setNewDept({ name: '', code: '' });
       fetchMaster();
       showToast(true, "Department added");
     } catch (err) { showToast(false, err.response?.data?.error || "Failed to add department"); }
@@ -118,7 +118,7 @@ const SuperuserPanel = () => {
 
   const handleUpdateDept = async () => {
     try {
-      await api.put(`/departments/${editingDept._id}`, { name: editingDept.name });
+      await api.put(`/departments/${editingDept._id}`, { name: editingDept.name, code: editingDept.code });
       setEditingDept(null);
       fetchMaster();
       showToast(true, "Department updated");
@@ -353,11 +353,18 @@ const SuperuserPanel = () => {
         {tab === 1 && (
           <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Manage Departments</Typography>
-            <Box component="form" onSubmit={handleAddDept} sx={{ display: 'flex', gap: 2, flexDirection: isMobile ? "column" : "row" }}>
+            <Box component="form" onSubmit={handleAddDept} sx={{ display: 'flex', gap: 2, flexDirection: isMobile ? "column" : "row", flexWrap: 'wrap' }}>
               <TextField
-                label="New Department"
-                value={newDept}
-                onChange={e => setNewDept(e.target.value)}
+                label="Department Name"
+                value={newDept.name}
+                onChange={e => setNewDept({ ...newDept, name: e.target.value })}
+                required
+                fullWidth
+              />
+              <TextField
+                label="Department Code (e.g., TRACK, GOV, RADIO, FUEL, VTEL, ONLINE)"
+                value={newDept.code}
+                onChange={e => setNewDept({ ...newDept, code: e.target.value })}
                 required
                 fullWidth
               />
@@ -398,7 +405,6 @@ const SuperuserPanel = () => {
               Assign New Task
             </Button>
 
-            {/* Assign Task Modal */}
             {assignOpen && (
               <Paper elevation={2} sx={{ p: 3, mb: 2, borderRadius: 2 }}>
                 <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>Assign Task</Typography>
@@ -434,7 +440,6 @@ const SuperuserPanel = () => {
               </Paper>
             )}
 
-            {/* Filters */}
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3, flexDirection: isMobile ? "column" : "row" }}>
               <FormControl sx={{ minWidth: 160 }}>
                 <InputLabel>User</InputLabel>
@@ -553,13 +558,18 @@ const SuperuserPanel = () => {
       {/* Edit Department Dialog */}
       <Dialog open={!!editingDept} onClose={() => setEditingDept(null)}>
         <DialogTitle>Edit Department</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
           <TextField
             label="Department Name"
             value={editingDept?.name || ''}
             onChange={e => setEditingDept({ ...editingDept, name: e.target.value })}
             fullWidth
-            sx={{ mt: 1 }}
+          />
+          <TextField
+            label="Department Code"
+            value={editingDept?.code || ''}
+            onChange={e => setEditingDept({ ...editingDept, code: e.target.value })}
+            fullWidth
           />
         </DialogContent>
         <DialogActions>
