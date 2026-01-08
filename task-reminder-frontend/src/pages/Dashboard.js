@@ -3,6 +3,7 @@ import axios from 'axios';
 import TaskCard from '../components/TaskCard';
 import Notifications from '../components/Notifications';
 import { AuthContext } from '../contexts/AuthContext';
+import ReportForm from '../components/forms/ReportForm';
 import {
   AppBar, Toolbar, Typography, IconButton, Box, Container, Grid, Paper, Button,
   TextField, MenuItem, Select, InputLabel, FormControl, useMediaQuery,
@@ -18,10 +19,9 @@ const Dashboard = () => {
   const { user, logout } = useContext(AuthContext);
   const [tasks, setTasks] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [showrooms, setShowrooms] = useState([]);
   const [filterDate, setFilterDate] = useState('');
-  const [form, setForm] = useState({ title: '', description: '', department: '' });
   const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
 
   // Memos
   const [unseenMemos, setUnseenMemos] = useState([]);
@@ -37,7 +37,6 @@ const Dashboard = () => {
     withCredentials: true
   });
 
-  // Fetch tasks
   const fetchTasks = async () => {
     const params = filterDate ? { date: filterDate } : {};
     try {
@@ -47,32 +46,6 @@ const Dashboard = () => {
       setTasks([]);
     }
   };
-
-  // Fetch departments, tasks, memos
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const depRes = await api.get('/departments/list');
-        setDepartments(depRes.data);
-        await fetchTasks();
-        await fetchMemos();
-      } catch (err) {
-        setDepartments([]);
-        setTasks([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-    // eslint-disable-next-line
-  }, [filterDate]);
-
-  // Poll unseen memos every 60s
-  useEffect(() => {
-    const interval = setInterval(fetchUnseenMemos, 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   const fetchUnseenMemos = async () => {
     try {
@@ -99,6 +72,40 @@ const Dashboard = () => {
     }
   };
 
+  const fetchDepsAndShowrooms = async () => {
+    try {
+      const [depRes, shRes] = await Promise.all([
+        api.get('/departments/list'),
+        api.get('/showrooms/list')
+      ]);
+      setDepartments(depRes.data || []);
+      setShowrooms(shRes.data || []);
+    } catch (err) {
+      setDepartments([]);
+      setShowrooms([]);
+    }
+  };
+
+  // Initial load and when filterDate changes
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        await Promise.all([fetchDepsAndShowrooms(), fetchTasks(), fetchMemos()]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+    // eslint-disable-next-line
+  }, [filterDate]);
+
+  // Poll unseen memos every 60s
+  useEffect(() => {
+    const interval = setInterval(fetchUnseenMemos, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   const markMemoSeen = async (id) => {
     try {
       await api.post(`/memos/${id}/seen`);
@@ -109,21 +116,6 @@ const Dashboard = () => {
     }
   };
 
-  // Add Task
-  const handleAddTask = async (e) => {
-    e.preventDefault();
-    setAdding(true);
-    try {
-      await api.post('/tasks/add', form);
-      setForm({ title: '', description: '', department: '' });
-      fetchTasks();
-    } catch (err) {
-      // handle error as needed
-    } finally {
-      setAdding(false);
-    }
-  };
-
   // Update Task status
   const handleUpdate = async (id, status) => {
     try {
@@ -131,6 +123,16 @@ const Dashboard = () => {
       fetchTasks();
     } catch (err) {
       // handle error as needed
+    }
+  };
+
+  // Submit Daily Report
+  const handleSubmitReport = async (payload) => {
+    try {
+      await api.post('/reports', payload);
+      // optionally toast success
+    } catch (err) {
+      // optionally toast error
     }
   };
 
@@ -186,6 +188,18 @@ const Dashboard = () => {
       <Container maxWidth="md" sx={{ mt: 4, pb: 6 }}>
         <Notifications user={user} />
 
+        {/* Submit Daily Report */}
+        <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mb: 4, borderRadius: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+            Submit / Update Daily Report
+          </Typography>
+          <ReportForm
+            departments={departments}
+            showrooms={showrooms}
+            onSubmit={handleSubmitReport}
+          />
+        </Paper>
+
         {/* Memo list */}
         <Paper elevation={2} sx={{ p: isMobile ? 2 : 3, mb: 3, borderRadius: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>Memos</Typography>
@@ -205,49 +219,11 @@ const Dashboard = () => {
           </Stack>
         </Paper>
 
-        {/* Task Add Form */}
-        <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mb: 4, borderRadius: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            Add New Task
-          </Typography>
-          <Box component="form" onSubmit={handleAddTask} sx={{ display: 'flex', flexDirection: isMobile ? "column" : "row", gap: 2 }}>
-            <TextField
-              label="Title"
-              value={form.title}
-              onChange={e => setForm({ ...form, title: e.target.value })}
-              required
-              fullWidth
-            />
-            <TextField
-              label="Description"
-              value={form.description}
-              onChange={e => setForm({ ...form, description: e.target.value })}
-              fullWidth
-            />
-            <FormControl fullWidth required>
-              <InputLabel>Department</InputLabel>
-              <Select
-                value={form.department}
-                label="Department"
-                onChange={e => setForm({ ...form, department: e.target.value })}
-              >
-                <MenuItem value="">Select Department</MenuItem>
-                {departments.map(d => (
-                  <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Button type="submit" variant="contained" color="primary" disabled={adding} sx={{ minWidth: 130 }}>
-              {adding ? "Adding..." : "Add Task"}
-            </Button>
-          </Box>
-        </Paper>
-
         {/* Filter */}
         <Paper elevation={1} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="body1" sx={{ fontWeight: 500 }}>
-              Filter by Date:
+              Filter tasks by Date:
             </Typography>
             <TextField
               type="date"
@@ -262,7 +238,7 @@ const Dashboard = () => {
           </Box>
         </Paper>
 
-        {/* Task List */}
+        {/* Task List (receive/mark done only) */}
         <Grid container spacing={3}>
           {tasks.map(task => (
             <Grid item xs={12} sm={6} md={4} key={task._id}>

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import api from '../api';
 import TaskCard from '../components/TaskCard';
 import { AuthContext } from '../contexts/AuthContext';
@@ -6,7 +6,7 @@ import {
   AppBar, Toolbar, Typography, Container, Tabs, Tab, Box, Paper, Button,
   IconButton, TextField, MenuItem, Select, InputLabel, FormControl, Grid,
   Divider, useMediaQuery, Snackbar, Alert, Dialog, DialogTitle, DialogContent,
-  DialogActions
+  DialogActions, Stack
 } from '@mui/material';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -16,6 +16,13 @@ import logo from '../assets/logo.png';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 
+import Filters from '../components/Filters';
+import KpiCards from '../components/KpiCards';
+import TrendLineChart from '../components/charts/TrendLineChart';
+import DeptBarChart from '../components/charts/DeptBarChart';
+import ShowroomBarChart from '../components/charts/ShowroomBarChart';
+import ReportForm from '../components/forms/ReportForm';
+
 const SuperuserPanel = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -24,15 +31,18 @@ const SuperuserPanel = () => {
 
   const [tab, setTab] = useState(0);
 
-  // Departments
+  // Departments / Showrooms
   const [departments, setDepartments] = useState([]);
-  const [newDept, setNewDept] = useState('');
-  const [editingDept, setEditingDept] = useState(null);
+  const [showrooms, setShowrooms] = useState([]);
 
   // Users
   const [users, setUsers] = useState([]);
   const [userForm, setUserForm] = useState({ name: '', email: '', phone: '', role: 'user' });
   const [editingUserId, setEditingUserId] = useState(null);
+
+  // Departments CRUD
+  const [newDept, setNewDept] = useState('');
+  const [editingDept, setEditingDept] = useState(null);
 
   // Tasks
   const [tasks, setTasks] = useState([]);
@@ -52,39 +62,56 @@ const SuperuserPanel = () => {
   const [memos, setMemos] = useState([]);
   const [memoForm, setMemoForm] = useState({ title: '', message: '' });
 
+  // Analytics
+  const [analyticsFilters, setAnalyticsFilters] = useState({ startDate: '', endDate: '', departmentId: '', showroomId: '' });
+  const [trends, setTrends] = useState({ series: [], todaySales: 0, yesterdaySales: 0, pctVsYesterday: null, pctVsLastWeek: null });
+  const [byDept, setByDept] = useState([]);
+  const [trackingShowroomRollup, setTrackingShowroomRollup] = useState([]);
+  const [submissionStatus, setSubmissionStatus] = useState({});
+
   // Toast
   const [toast, setToast] = useState({ open: false, success: true, message: '' });
-
-  const fetchData = async () => {
-    try {
-      const [deptRes, usersRes, tasksRes, memosRes] = await Promise.all([
-        api.get('/departments/list'),
-        api.get('/admin/users'),
-        api.get('/tasks/filter', { params: filters }),
-        api.get('/memos')
-      ]);
-      setDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
-      setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
-      setTasks(Array.isArray(tasksRes.data) ? tasksRes.data : []);
-      setMemos(Array.isArray(memosRes.data) ? memosRes.data : []);
-    } catch (err) {
-      setDepartments([]); setUsers([]); setTasks([]); setMemos([]);
-      showToast(false, err.response?.data?.error || "Failed to load data");
-    }
-  };
-
-  useEffect(() => { fetchData(); }, [filters]);
 
   const showToast = (success, message) => setToast({ open: true, success, message });
   const closeToast = (_, reason) => { if (reason !== 'clickaway') setToast({ ...toast, open: false }); };
 
-  // Departments
+  const fetchMaster = async () => {
+    try {
+      const [deptRes, usersRes, memosRes, showroomsRes] = await Promise.all([
+        api.get('/departments/list'),
+        api.get('/admin/users'),
+        api.get('/memos'),
+        api.get('/showrooms/list').catch(() => ({ data: [] })) // in case endpoint not present
+      ]);
+      setDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
+      setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
+      setMemos(Array.isArray(memosRes.data) ? memosRes.data : []);
+      setShowrooms(Array.isArray(showroomsRes.data) ? showroomsRes.data : []);
+    } catch (err) {
+      setDepartments([]); setUsers([]); setMemos([]); setShowrooms([]);
+      showToast(false, err.response?.data?.error || "Failed to load data");
+    }
+  };
+
+  const fetchTasks = async () => {
+    try {
+      const tasksRes = await api.get('/tasks/filter', { params: filters });
+      setTasks(Array.isArray(tasksRes.data) ? tasksRes.data : []);
+    } catch (err) {
+      setTasks([]);
+    }
+  };
+
+  useEffect(() => { fetchMaster(); }, []);
+  useEffect(() => { fetchTasks(); }, [filters]);
+
+  // Departments CRUD
   const handleAddDept = async (e) => {
     e.preventDefault();
     try {
       await api.post('/departments/add', { name: newDept });
       setNewDept('');
-      fetchData();
+      fetchMaster();
       showToast(true, "Department added");
     } catch (err) { showToast(false, err.response?.data?.error || "Failed to add department"); }
   };
@@ -93,7 +120,7 @@ const SuperuserPanel = () => {
     try {
       await api.put(`/departments/${editingDept._id}`, { name: editingDept.name });
       setEditingDept(null);
-      fetchData();
+      fetchMaster();
       showToast(true, "Department updated");
     } catch (err) { showToast(false, err.response?.data?.error || "Failed to update department"); }
   };
@@ -101,7 +128,7 @@ const SuperuserPanel = () => {
   const handleDeleteDept = async (id) => {
     try {
       await api.delete(`/departments/${id}`);
-      fetchData();
+      fetchMaster();
       showToast(true, "Department deleted");
     } catch (err) {
       showToast(false, err.response?.data?.error || "Failed to delete department");
@@ -121,7 +148,7 @@ const SuperuserPanel = () => {
       }
       setUserForm({ name: '', email: '', phone: '', role: 'user' });
       setEditingUserId(null);
-      fetchData();
+      fetchMaster();
     } catch (err) {
       showToast(false, err.response?.data?.error || 'User create/update failed');
     }
@@ -130,7 +157,7 @@ const SuperuserPanel = () => {
   const handleDeleteUser = async (id) => {
     try {
       await api.delete(`/admin/users/${id}`);
-      fetchData();
+      fetchMaster();
       showToast(true, "User deleted");
     } catch (err) {
       showToast(false, err.response?.data?.error || 'User delete failed');
@@ -144,7 +171,7 @@ const SuperuserPanel = () => {
       await api.post('/tasks/assign', assignForm);
       setAssignOpen(false);
       setAssignForm({ title: '', description: '', department: '', assignedTo: '', deadline: '', status: 'pending' });
-      fetchData();
+      fetchTasks();
       showToast(true, "Task assigned");
     } catch (err) {
       showToast(false, err.response?.data?.error || "Failed to assign task");
@@ -156,7 +183,7 @@ const SuperuserPanel = () => {
     try {
       await api.patch(`/tasks/${editingTask._id}`, editingTask);
       setEditingTask(null);
-      fetchData();
+      fetchTasks();
       showToast(true, "Task updated");
     } catch (err) {
       showToast(false, err.response?.data?.error || "Failed to update task");
@@ -166,7 +193,7 @@ const SuperuserPanel = () => {
   const handleDeleteTask = async (id) => {
     try {
       await api.delete(`/tasks/${id}`);
-      fetchData();
+      fetchTasks();
       showToast(true, "Task deleted");
     } catch (err) {
       showToast(false, err.response?.data?.error || "Failed to delete task");
@@ -179,12 +206,53 @@ const SuperuserPanel = () => {
     try {
       await api.post('/memos', memoForm);
       setMemoForm({ title: '', message: '' });
-      fetchData();
+      fetchMaster();
       showToast(true, "Memo broadcasted");
     } catch (err) {
       showToast(false, err.response?.data?.error || "Failed to broadcast memo");
     }
   };
+
+  // Analytics fetch
+  const fetchAnalytics = async () => {
+    try {
+      const params = { ...analyticsFilters };
+      const [trRes, dailyRes, subRes] = await Promise.all([
+        api.get('/analytics/trends', { params }),
+        api.get('/analytics/daily', { params }),
+        api.get('/analytics/submission-status', { params: { date: analyticsFilters.endDate || analyticsFilters.startDate || new Date().toISOString().slice(0,10) } })
+      ]);
+
+      setTrends({
+        series: trRes.data?.series || trRes.data || [],
+        todaySales: trRes.data?.todaySales || 0,
+        yesterdaySales: trRes.data?.yesterdaySales || 0,
+        pctVsYesterday: trRes.data?.pctVsYesterday ?? null,
+        pctVsLastWeek: trRes.data?.pctVsLastWeek ?? null
+      });
+
+      setByDept(dailyRes.data?.byDept || []);
+      setTrackingShowroomRollup(dailyRes.data?.trackingShowroomRollup || []);
+      setSubmissionStatus(subRes.data || {});
+    } catch (err) {
+      showToast(false, err.response?.data?.error || "Failed to load analytics");
+    }
+  };
+
+  useEffect(() => { fetchAnalytics(); /* eslint-disable-next-line */ }, [analyticsFilters.departmentId, analyticsFilters.showroomId]);
+
+  // Report submission
+  const handleSubmitReport = async (payload) => {
+    try {
+      await api.post('/reports', payload);
+      showToast(true, 'Report submitted/updated');
+      fetchAnalytics();
+    } catch (err) {
+      showToast(false, err.response?.data?.error || 'Failed to submit report');
+    }
+  };
+
+  const deptLookup = useMemo(() => Object.fromEntries(departments.map(d => [d._id, d.name])), [departments]);
 
   const handleLogout = () => { logout(); navigate("/login"); };
 
@@ -219,6 +287,8 @@ const SuperuserPanel = () => {
           <Tab label="Departments" />
           <Tab label="Tasks" />
           <Tab label="Memos" />
+          <Tab label="Analytics" />
+          <Tab label="Submit Report" />
         </Tabs>
 
         {/* Users Tab */}
@@ -302,6 +372,7 @@ const SuperuserPanel = () => {
                   <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 2 }}>
                     <Box>
                       <Typography fontWeight={600}>{dept.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">{dept.code}</Typography>
                     </Box>
                     <Box>
                       <IconButton color="primary" onClick={() => setEditingDept({ ...dept })}>
@@ -434,6 +505,47 @@ const SuperuserPanel = () => {
               ))}
               {memos.length === 0 && <Grid item xs={12}><Typography>No memos yet.</Typography></Grid>}
             </Grid>
+          </Paper>
+        )}
+
+        {/* Analytics Tab */}
+        {tab === 4 && (
+          <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Analytics</Typography>
+            <Filters
+              filters={analyticsFilters}
+              onChange={setAnalyticsFilters}
+              departments={departments}
+              showrooms={showrooms}
+            />
+            <Button variant="contained" onClick={fetchAnalytics} sx={{ mb: 2 }}>Refresh Analytics</Button>
+            <KpiCards data={{ ...trends, submission: submissionStatus }} />
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Trend (Sales over time)</Typography>
+              <TrendLineChart data={trends.series || []} />
+            </Box>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>By Department</Typography>
+                <DeptBarChart data={byDept} deptLookup={deptLookup} />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Tracking Showroom Comparison</Typography>
+                <ShowroomBarChart data={trackingShowroomRollup} />
+              </Grid>
+            </Grid>
+          </Paper>
+        )}
+
+        {/* Submit Report Tab */}
+        {tab === 5 && (
+          <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Submit / Update Daily Report</Typography>
+            <ReportForm
+              departments={departments}
+              showrooms={showrooms}
+              onSubmit={handleSubmitReport}
+            />
           </Paper>
         )}
       </Container>
