@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Showroom = require('../models/Showroom');
-const { isAuthenticated, isAdminOrSuperuser } = require('../middleware/auth');
+const { isAuthenticated } = require('../middleware/auth');
 
 // List active showrooms (tracking)
 router.get('/list', isAuthenticated, async (_req, res) => {

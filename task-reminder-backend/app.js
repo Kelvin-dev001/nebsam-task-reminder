@@ -30,7 +30,7 @@ app.use('/tasks', require('./routes/taskRoutes'));
 app.use('/admin', require('./routes/adminRoutes'));
 app.use('/memos', require('./routes/memoRoutes'));
 
-// Analytics + reports + showrooms (combined)
+// Analytics + reports + showrooms
 app.use('/analytics', require('./routes/analyticsRoutes'));   // /analytics/daily, /analytics/trends, /analytics/submission-status
 app.use('/', require('./routes/dailyReports'));               // /reports
 app.use('/showrooms', require('./routes/showroomRoutes'));    // /showrooms/list

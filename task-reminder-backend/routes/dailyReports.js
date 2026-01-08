@@ -7,7 +7,7 @@ const { isAuthenticated } = require('../middleware/auth');
 
 function normalizeDate(d) {
   const dt = new Date(d);
-  dt.setUTCHours(0,0,0,0);
+  dt.setUTCHours(0, 0, 0, 0);
   return dt;
 }
 
@@ -15,21 +15,17 @@ router.post('/reports', isAuthenticated, async (req, res) => {
   try {
     const { reportDate, departmentId, showroomId, metrics, notes, revenue } = req.body;
     const date = normalizeDate(reportDate);
-    // Basic validation
     if (!reportDate || !departmentId) return res.status(400).json({ error: 'reportDate and departmentId are required' });
 
-    // Ensure department exists
     const dept = await Department.findById(departmentId);
     if (!dept) return res.status(404).json({ error: 'Department not found' });
 
-    // If Tracking, showroom is required and must belong to Tracking
     if (dept.code === 'TRACK') {
       if (!showroomId) return res.status(400).json({ error: 'showroomId required for Tracking' });
       const showroom = await Showroom.findById(showroomId);
       if (!showroom) return res.status(404).json({ error: 'Showroom not found' });
     }
 
-    // Build update doc per department code
     const update = {
       reportDate: date,
       departmentId,
@@ -45,26 +41,13 @@ router.post('/reports', isAuthenticated, async (req, res) => {
       online: undefined,
     };
     switch (dept.code) {
-      case 'TRACK':
-        update.tracking = metrics || {};
-        break;
-      case 'GOV':
-        update.speedGovernor = metrics || {};
-        break;
-      case 'RADIO':
-        update.radio = metrics || {};
-        break;
-      case 'FUEL':
-        update.fuel = metrics || {};
-        break;
-      case 'VTEL':
-        update.vehicleTelematics = metrics || {};
-        break;
-      case 'ONLINE':
-        update.online = metrics || {};
-        break;
-      default:
-        return res.status(400).json({ error: 'Unsupported department code' });
+      case 'TRACK': update.tracking = metrics || {}; break;
+      case 'GOV': update.speedGovernor = metrics || {}; break;
+      case 'RADIO': update.radio = metrics || {}; break;
+      case 'FUEL': update.fuel = metrics || {}; break;
+      case 'VTEL': update.vehicleTelematics = metrics || {}; break;
+      case 'ONLINE': update.online = metrics || {}; break;
+      default: return res.status(400).json({ error: 'Unsupported department code' });
     }
 
     const result = await DailyDepartmentReport.findOneAndUpdate(
@@ -78,3 +61,5 @@ router.post('/reports', isAuthenticated, async (req, res) => {
     res.status(500).json({ error: err.message || 'Failed to upsert report' });
   }
 });
+
+module.exports = router;
