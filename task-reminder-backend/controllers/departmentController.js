@@ -3,15 +3,16 @@ const Department = require('../models/Department');
 // Create
 exports.addDepartment = async (req, res) => {
   try {
-    const { name } = req.body;
-    const dept = await Department.create({ name });
+    const { name, code } = req.body;
+    if (!name || !code) return res.status(400).json({ error: 'name and code are required' });
+    const dept = await Department.create({ name, code });
     res.status(201).json(dept);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
 
-// List
+// List (unchanged)
 exports.listDepartments = async (_req, res) => {
   try {
     const depts = await Department.find({});
@@ -24,7 +25,9 @@ exports.listDepartments = async (_req, res) => {
 // Update
 exports.updateDepartment = async (req, res) => {
   try {
-    const dept = await Department.findByIdAndUpdate(req.params.id, { name: req.body.name }, { new: true });
+    const { name, code } = req.body;
+    if (!name && !code) return res.status(400).json({ error: 'name or code required' });
+    const dept = await Department.findByIdAndUpdate(req.params.id, { name, code }, { new: true });
     if (!dept) return res.status(404).json({ message: 'Department not found' });
     res.json(dept);
   } catch (err) {
@@ -32,7 +35,7 @@ exports.updateDepartment = async (req, res) => {
   }
 };
 
-// Delete
+// Delete (unchanged)
 exports.deleteDepartment = async (req, res) => {
   try {
     const dept = await Department.findByIdAndDelete(req.params.id);
