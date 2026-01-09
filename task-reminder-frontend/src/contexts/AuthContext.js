@@ -1,5 +1,5 @@
-import React, { createContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { createContext, useState } from 'react';
+import api from '../api';
 
 export const AuthContext = createContext();
 
@@ -10,53 +10,43 @@ export const AuthProvider = ({ children }) => {
   });
   const [token, setToken] = useState(() => localStorage.getItem('token'));
 
-  // Attach token to every request (once per app load)
-  useEffect(() => {
-    axios.interceptors.request.use(config => {
-      const localToken = localStorage.getItem('token');
-      if (localToken) {
-        config.headers.Authorization = `Bearer ${localToken}`;
-      }
-      return config;
-    });
-  }, []);
+  const persistAuth = (userObj, tokenStr) => {
+    setUser(userObj);
+    setToken(tokenStr);
+    localStorage.setItem('user', JSON.stringify(userObj));
+    localStorage.setItem('token', tokenStr);
+    if (tokenStr) {
+      api.defaults.headers.common.Authorization = `Bearer ${tokenStr}`;
+    } else {
+      delete api.defaults.headers.common.Authorization;
+    }
+  };
 
   // LOGIN (all roles)
   const login = async (email, password) => {
-    const res = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, { email, password });
-    setUser(res.data.user);
-    setToken(res.data.token);
-    localStorage.setItem('user', JSON.stringify(res.data.user));
-    localStorage.setItem('token', res.data.token);
+    const res = await api.post('/auth/login', { email, password }, { withCredentials: true });
+    persistAuth(res.data.user, res.data.token);
     return res.data;
   };
 
-  // ADMIN LOGIN (same endpoint, but we can keep for clarity)
+  // ADMIN LOGIN (same endpoint)
   const adminLogin = async (email, password) => {
-    const res = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, { email, password });
-    setUser(res.data.user);
-    setToken(res.data.token);
-    localStorage.setItem('user', JSON.stringify(res.data.user));
-    localStorage.setItem('token', res.data.token);
+    const res = await api.post('/auth/login', { email, password }, { withCredentials: true });
+    persistAuth(res.data.user, res.data.token);
     return res.data;
   };
 
   // CHANGE PASSWORD
   const changePassword = async (oldPassword, newPassword) => {
-    const res = await axios.post(`${process.env.REACT_APP_API_URL}/auth/change-password`, { oldPassword, newPassword });
-    // After changing password, clear the requiresPasswordChange flag locally
+    const res = await api.post('/auth/change-password', { oldPassword, newPassword }, { withCredentials: true });
     const updatedUser = { ...user, requiresPasswordChange: false };
-    setUser(updatedUser);
-    localStorage.setItem('user', JSON.stringify(updatedUser));
+    persistAuth(updatedUser, token);
     return res.data;
   };
 
-  // LOGOUT (JWT: just clear local storage)
+  // LOGOUT
   const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
+    persistAuth(null, null);
   };
 
   return (
