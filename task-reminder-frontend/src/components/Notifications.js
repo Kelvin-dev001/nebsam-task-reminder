@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
-import axios from 'axios';
 import { Snackbar, Alert, Slide } from '@mui/material';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
+import api from '../api';
 
 const Notifications = ({ user }) => {
   const [open, setOpen] = React.useState(false);
@@ -12,7 +12,7 @@ const Notifications = ({ user }) => {
 
     const fetchReminders = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/tasks/reminders', { withCredentials: true });
+        const res = await api.get('/tasks/reminders', { withCredentials: true });
         if (res.data.length > 0) {
           setReminderCount(res.data.length);
           setOpen(true);
