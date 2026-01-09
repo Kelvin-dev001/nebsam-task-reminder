@@ -6,7 +6,7 @@ import { AuthContext } from '../contexts/AuthContext';
 import ReportForm from '../components/forms/ReportForm';
 import {
   AppBar, Toolbar, Typography, IconButton, Box, Container, Grid, Paper, Button,
-  TextField, Dialog, DialogTitle, DialogContent, DialogActions, Stack
+  TextField, Dialog, DialogTitle, DialogContent, DialogActions, Stack, Snackbar, Alert
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import logo from '../assets/logo.png';
@@ -27,16 +27,22 @@ const Dashboard = () => {
   const [allMemos, setAllMemos] = useState([]);
   const [memoModalOpen, setMemoModalOpen] = useState(false);
 
+  // Toast
+  const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
+
   const theme = useTheme();
   const isMobile = useTheme().breakpoints.down("sm");
   const navigate = useNavigate();
+
+  const openToast = (severity, message) => setToast({ open: true, severity, message });
+  const closeToast = () => setToast({ ...toast, open: false });
 
   const fetchTasks = async () => {
     const params = filterDate ? { date: filterDate } : {};
     try {
       const res = await api.get('/tasks/my', { params, withCredentials: true });
       setTasks(res.data);
-    } catch (err) {
+    } catch {
       setTasks([]);
     }
   };
@@ -46,8 +52,8 @@ const Dashboard = () => {
       const res = await api.get('/memos/unseen', { withCredentials: true });
       setUnseenMemos(res.data || []);
       if ((res.data || []).length) setMemoModalOpen(true);
-    } catch (err) {
-      // noop
+    } catch {
+      // ignore
     }
   };
 
@@ -60,7 +66,7 @@ const Dashboard = () => {
       setUnseenMemos(unseenRes.data || []);
       setAllMemos(allRes.data || []);
       if ((unseenRes.data || []).length) setMemoModalOpen(true);
-    } catch (err) {
+    } catch {
       setUnseenMemos([]);
       setAllMemos([]);
     }
@@ -74,7 +80,7 @@ const Dashboard = () => {
       ]);
       setDepartments(depRes.data || []);
       setShowrooms(shRes.data || []);
-    } catch (err) {
+    } catch {
       setDepartments([]);
       setShowrooms([]);
     }
@@ -104,8 +110,8 @@ const Dashboard = () => {
       await api.post(`/memos/${id}/seen`, {}, { withCredentials: true });
       setUnseenMemos(prev => prev.filter(m => m._id !== id));
       if (unseenMemos.length <= 1) setMemoModalOpen(false);
-    } catch (err) {
-      // noop
+    } catch {
+      // ignore
     }
   };
 
@@ -114,18 +120,18 @@ const Dashboard = () => {
     try {
       await api.patch(`/tasks/${id}/status`, { status }, { withCredentials: true });
       fetchTasks();
-    } catch (err) {
-      // handle error as needed
+    } catch {
+      openToast('error', 'Failed to update task');
     }
   };
 
-  // Submit Daily Report
+  // Submit Daily Report with toast
   const handleSubmitReport = async (payload) => {
     try {
       await api.post('/reports', payload, { withCredentials: true });
-      // optionally toast success
+      openToast('success', 'Report submitted/updated');
     } catch (err) {
-      // optionally toast error
+      openToast('error', err.response?.data?.error || 'Failed to submit report');
     }
   };
 
@@ -258,6 +264,12 @@ const Dashboard = () => {
           <Button onClick={() => setMemoModalOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar open={toast.open} autoHideDuration={4000} onClose={closeToast} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+        <Alert onClose={closeToast} severity={toast.severity} sx={{ fontWeight: 700 }}>
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
