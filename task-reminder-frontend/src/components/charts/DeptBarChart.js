@@ -4,7 +4,6 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 const DeptBarChart = ({ data = [], deptLookup = {} }) => {
   const mapped = data.map(d => ({
     name: deptLookup[d._id] || d._id,
-    revenue: d.revenue ?? 0,
     reports: d.reports ?? 0
   }));
 
@@ -15,7 +14,6 @@ const DeptBarChart = ({ data = [], deptLookup = {} }) => {
         <XAxis dataKey="name" />
         <YAxis />
         <Tooltip />
-        <Bar dataKey="revenue" fill="#4caf50" name="Revenue" />
         <Bar dataKey="reports" fill="#2196f3" name="Reports" />
       </BarChart>
     </ResponsiveContainer>

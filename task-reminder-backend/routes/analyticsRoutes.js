@@ -7,7 +7,12 @@ const { isAuthenticated, isSuperuser } = require('../middleware/auth');
 
 function normalizeDate(d) { const dt = new Date(d); dt.setUTCHours(0,0,0,0); return dt; }
 
-// Daily rollup
+// Helper to sum all numeric leaf fields in a subdocument
+const sumAll = (...paths) => ({
+  $add: paths.map(p => ({ $ifNull: [p, 0] }))
+});
+
+// Daily rollup (no revenue)
 router.get('/daily', isAuthenticated, isSuperuser, async (req, res) => {
   const { startDate, endDate, departmentId, showroomId } = req.query;
   const match = {};
@@ -24,21 +29,18 @@ router.get('/daily', isAuthenticated, isSuperuser, async (req, res) => {
           byDate: [
             { $group: {
               _id: "$reportDate",
-              tracking: { $sum: "$tracking.offlineVehicles" },
-              revenue: { $sum: "$revenue.amount" },
-              count: { $sum: 1 }
+              reports: { $sum: 1 }
             }},
             { $sort: { _id: 1 } }
           ],
           byDept: [
             { $group: {
               _id: "$departmentId",
-              revenue: { $sum: "$revenue.amount" },
               reports: { $sum: 1 }
             }}
           ],
           total: [
-            { $group: { _id: null, revenue: { $sum: "$revenue.amount" }, reports: { $sum: 1 } } }
+            { $group: { _id: null, reports: { $sum: 1 } } }
           ]
         }
       }
@@ -49,7 +51,7 @@ router.get('/daily', isAuthenticated, isSuperuser, async (req, res) => {
   }
 });
 
-// Trends (today/yesterday/last-week) and series
+// Trends (this sums all relevant numeric fields as "sales" proxy)
 router.get('/trends', isAuthenticated, isSuperuser, async (req, res) => {
   const { departmentId, showroomId } = req.query;
   const today = new Date(); today.setUTCHours(0,0,0,0);
@@ -60,34 +62,43 @@ router.get('/trends', isAuthenticated, isSuperuser, async (req, res) => {
   if (departmentId) baseMatch.departmentId = departmentId;
   if (showroomId) baseMatch.showroomId = showroomId;
 
-  const projectSales = {
-    reportDate: 1,
-    sales: {
-      $add: [
-        { $ifNull: ["$tracking.tracker1Install", 0] },
-        { $ifNull: ["$tracking.tracker1Renewal", 0] },
-        { $ifNull: ["$tracking.tracker2Install", 0] },
-        { $ifNull: ["$tracking.tracker2Renewal", 0] },
-        { $ifNull: ["$tracking.magneticInstall", 0] },
-        { $ifNull: ["$tracking.magneticRenewal", 0] },
-        { $ifNull: ["$speedGovernor.mockMombasaInstall", 0] },
-        { $ifNull: ["$speedGovernor.mockMombasaRenewal", 0] },
-        { $ifNull: ["$speedGovernor.nebsamInstall", 0] },
-        { $ifNull: ["$speedGovernor.nebsamRenewal", 0] },
-        { $ifNull: ["$radio.unitSales", 0] },
-        { $ifNull: ["$radio.renewals", 0] },
-        { $ifNull: ["$fuel.installations", 0] },
-        { $ifNull: ["$fuel.renewals", 0] },
-        { $ifNull: ["$vehicleTelematics.installations", 0] },
-        { $ifNull: ["$vehicleTelematics.renewals", 0] },
-        { $ifNull: ["$online.dailySalesClosed", 0] },
-      ]
-    }
-  };
+  const salesExpr = sumAll(
+    // Tracking
+    "$tracking.tracker1Install", "$tracking.tracker1Renewal",
+    "$tracking.tracker2Install", "$tracking.tracker2Renewal",
+    "$tracking.magneticInstall", "$tracking.magneticRenewal",
+    "$tracking.offlineVehicles",
+    // Governors (office/agent installs/renewals + offline + checkups)
+    "$speedGovernor.nebsam.officeInstall", "$speedGovernor.nebsam.agentInstall",
+    "$speedGovernor.nebsam.officeRenewal", "$speedGovernor.nebsam.agentRenewal",
+    "$speedGovernor.nebsam.offline", "$speedGovernor.nebsam.checkups",
+    "$speedGovernor.mockMombasa.officeInstall", "$speedGovernor.mockMombasa.agentInstall",
+    "$speedGovernor.mockMombasa.officeRenewal", "$speedGovernor.mockMombasa.agentRenewal",
+    "$speedGovernor.mockMombasa.offline", "$speedGovernor.mockMombasa.checkups",
+    "$speedGovernor.sinotrack.officeInstall", "$speedGovernor.sinotrack.agentInstall",
+    "$speedGovernor.sinotrack.officeRenewal", "$speedGovernor.sinotrack.agentRenewal",
+    "$speedGovernor.sinotrack.offline", "$speedGovernor.sinotrack.checkups",
+    // Radio
+    "$radio.officeSale", "$radio.agentSale",
+    "$radio.officeRenewal", "$radio.agentRenewal",
+    // Fuel
+    "$fuel.officeInstall", "$fuel.agentInstall",
+    "$fuel.officeRenewal", "$fuel.agentRenewal",
+    "$fuel.offline", "$fuel.checkups",
+    // Vehicle Telematics
+    "$vehicleTelematics.officeInstall", "$vehicleTelematics.agentInstall",
+    "$vehicleTelematics.officeRenewal", "$vehicleTelematics.agentRenewal",
+    "$vehicleTelematics.offline", "$vehicleTelematics.checkups",
+    // Online installs/renewals
+    "$online.installs.bluetooth", "$online.installs.hybrid",
+    "$online.installs.comprehensive", "$online.installs.hybridAlarm",
+    "$online.renewals.bluetooth", "$online.renewals.hybrid",
+    "$online.renewals.comprehensive", "$online.renewals.hybridAlarm"
+  );
 
   const agg = await DailyDepartmentReport.aggregate([
     { $match: { ...baseMatch, reportDate: { $gte: lastWeekStart, $lte: today } } },
-    { $project: projectSales },
+    { $project: { reportDate: 1, sales: salesExpr } },
     { $group: { _id: "$reportDate", sales: { $sum: "$sales" } } },
     { $sort: { _id: 1 } }
   ]);
@@ -111,7 +122,7 @@ router.get('/trends', isAuthenticated, isSuperuser, async (req, res) => {
   });
 });
 
-// Submission status (submitted vs expected)
+// Submission status (unchanged)
 router.get('/submission-status', isAuthenticated, isSuperuser, async (req, res) => {
   const { date } = req.query;
   const day = new Date(date || new Date()); day.setUTCHours(0,0,0,0);

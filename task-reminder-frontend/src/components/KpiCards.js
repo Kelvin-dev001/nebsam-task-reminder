@@ -30,10 +30,10 @@ const KpiCards = ({ data = {} }) => {
   return (
     <Grid container spacing={2} sx={{ mb: 2 }}>
       <Grid item xs={12} sm={6} md={3}>
-        <KpiCard title="Today Sales" value={todaySales} subtitle="Installations + Renewals" />
+        <KpiCard title="Today Total Activity" value={todaySales} subtitle="Installs/Renewals/Checks" />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
-        <KpiCard title="Yesterday Sales" value={yesterdaySales} />
+        <KpiCard title="Yesterday Activity" value={yesterdaySales} />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
         <KpiCard title="% vs Yesterday" value={pctVsYesterday != null ? `${pctVsYesterday.toFixed(1)}%` : '—'} trend={pctVsYesterday} />

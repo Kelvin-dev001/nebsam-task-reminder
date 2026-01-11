@@ -8,7 +8,7 @@ const ShowroomBarChart = ({ data = [] }) => (
       <XAxis dataKey="showroomName" />
       <YAxis />
       <Tooltip />
-      <Bar dataKey="sales" fill="#ff9800" name="Sales" />
+      <Bar dataKey="sales" fill="#ff9800" name="Activity" />
     </BarChart>
   </ResponsiveContainer>
 );
