@@ -15,7 +15,7 @@ const CustomerComplaintPage = () => {
 
   const loadDepartments = async () => {
     try {
-      const res = await api.get('/departments/public-list'); // public endpoint
+      const res = await api.get('/departments/public-list', { withCredentials: false });
       setDepartments(res.data || []);
     } catch (err) {
       setDepartments([]);

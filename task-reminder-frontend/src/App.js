@@ -32,6 +32,9 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin-login" element={<AdminLoginPage />} />
           <Route path="/super-login" element={<SuperuserLoginPage />} />
+          {/* Public complaint page */}
+          <Route path="/customer-complaints" element={<CustomerComplaintPage />} />
+          {/* Keep legacy /complaints if you’ve shared it already */}
           <Route path="/complaints" element={<CustomerComplaintPage />} />
           <Route path="/change-password" element={
             <PrivateRoute allowChangePassword={true}>
