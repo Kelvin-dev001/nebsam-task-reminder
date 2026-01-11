@@ -1,19 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const Complaint = require('../models/Complaint');
-const Task = require('../models/Task'); // assumes you have a Task model
+const Task = require('../models/Task');
 const { isAuthenticated, isSuperuser } = require('../middleware/auth');
 const { sendSms } = require('../utils/sms');
 
-// Public submit
-router.post('/complaints', async (req, res) => {
+// Public submit -> POST /complaints
+router.post('/', async (req, res) => {
   try {
     const { customerName, plateOrCompany, mobile, service, issue } = req.body;
     if (!plateOrCompany || !mobile || !service || !issue) {
       return res.status(400).json({ error: 'plateOrCompany, mobile, service, issue are required' });
     }
     const c = await Complaint.create({ customerName, plateOrCompany, mobile, service, issue });
-    // Thank-you SMS
     await sendSms(mobile, 'Thank you for your feedback. Your complaint has been received and is being processed. We will update you once it is sorted.');
     res.status(201).json(c);
   } catch (err) {
@@ -21,8 +20,8 @@ router.post('/complaints', async (req, res) => {
   }
 });
 
-// Superuser list
-router.get('/complaints', isAuthenticated, isSuperuser, async (_req, res) => {
+// Superuser list -> GET /complaints
+router.get('/', isAuthenticated, isSuperuser, async (_req, res) => {
   try {
     const list = await Complaint.find({}).sort({ createdAt: -1 });
     res.json(list);
@@ -31,8 +30,8 @@ router.get('/complaints', isAuthenticated, isSuperuser, async (_req, res) => {
   }
 });
 
-// Superuser: assign complaint -> create task
-router.post('/complaints/:id/assign', isAuthenticated, isSuperuser, async (req, res) => {
+// Superuser assign -> POST /complaints/:id/assign
+router.post('/:id/assign', isAuthenticated, isSuperuser, async (req, res) => {
   try {
     const { title, description, department, assignedTo, deadline, status = 'pending' } = req.body;
     const complaint = await Complaint.findById(req.params.id);
