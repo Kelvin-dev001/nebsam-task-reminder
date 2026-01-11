@@ -21,7 +21,6 @@ import KpiCards from '../components/KpiCards';
 import TrendLineChart from '../components/charts/TrendLineChart';
 import DeptBarChart from '../components/charts/DeptBarChart';
 import ShowroomBarChart from '../components/charts/ShowroomBarChart';
-import ReportForm from '../components/forms/ReportForm';
 import BossMonthlyPies from '../components/charts/BossMonthlyPies';
 
 const statusStyles = {
@@ -53,7 +52,7 @@ const SuperuserPanel = () => {
 
   // Tasks
   const [tasks, setTasks] = useState([]);
-  const [filters, setFilters] = useState({ user: '', department: '', date: '' });
+  const [filters, setFilters] = useState({ user: '', department: '', date: '', status: '', complaintId: '' });
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignForm, setAssignForm] = useState({
     title: '',
@@ -72,6 +71,7 @@ const SuperuserPanel = () => {
   // Complaints
   const [complaints, setComplaints] = useState([]);
   const [complaintFilter, setComplaintFilter] = useState('');
+  const [complaintDateRange, setComplaintDateRange] = useState({ start: '', end: '' });
   const [assignComplaintOpen, setAssignComplaintOpen] = useState(false);
   const [complaintToAssign, setComplaintToAssign] = useState(null);
   const [assignComplaintForm, setAssignComplaintForm] = useState({
@@ -159,18 +159,6 @@ const SuperuserPanel = () => {
     }
   };
 
-  // Submit Report (used in the Submit Report tab)
-  const handleSubmitReport = async (payload) => {
-    try {
-      await api.post('/reports', payload);
-      showToast(true, 'Report submitted/updated');
-      fetchAnalytics();
-      fetchMonthly();
-    } catch (err) {
-      showToast(false, err.response?.data?.error || 'Failed to submit report');
-    }
-  };
-
   useEffect(() => { fetchMaster(); }, []);
   useEffect(() => { fetchTasks(); }, [filters]);
   useEffect(() => { fetchAnalytics(); /* eslint-disable-next-line */ }, [analyticsFilters.departmentId, analyticsFilters.showroomId]);
@@ -195,14 +183,22 @@ const SuperuserPanel = () => {
     } catch (err) { showToast(false, err.response?.data?.error || "Failed to update department"); }
   };
 
+  const confirmAnd = async (action, msg) => {
+    const ok = window.confirm(msg);
+    if (!ok) return;
+    await action();
+  };
+
   const handleDeleteDept = async (id) => {
-    try {
-      await api.delete(`/departments/${id}`);
-      fetchMaster();
-      showToast(true, "Department deleted");
-    } catch (err) {
-      showToast(false, err.response?.data?.error || "Failed to delete department");
-    }
+    await confirmAnd(async () => {
+      try {
+        await api.delete(`/departments/${id}`);
+        fetchMaster();
+        showToast(true, "Department deleted");
+      } catch (err) {
+        showToast(false, err.response?.data?.error || "Failed to delete department");
+      }
+    }, "Delete this department?");
   };
 
   // Users
@@ -225,13 +221,15 @@ const SuperuserPanel = () => {
   };
 
   const handleDeleteUser = async (id) => {
-    try {
-      await api.delete(`/admin/users/${id}`);
-      fetchMaster();
-      showToast(true, "User deleted");
-    } catch (err) {
-      showToast(false, err.response?.data?.error || 'User delete failed');
-    }
+    await confirmAnd(async () => {
+      try {
+        await api.delete(`/admin/users/${id}`);
+        fetchMaster();
+        showToast(true, "User deleted");
+      } catch (err) {
+        showToast(false, err.response?.data?.error || 'User delete failed');
+      }
+    }, "Delete this user?");
   };
 
   // Tasks
@@ -261,13 +259,15 @@ const SuperuserPanel = () => {
   };
 
   const handleDeleteTask = async (id) => {
-    try {
-      await api.delete(`/tasks/${id}`);
-      fetchTasks();
-      showToast(true, "Task deleted");
-    } catch (err) {
-      showToast(false, err.response?.data?.error || "Failed to delete task");
-    }
+    await confirmAnd(async () => {
+      try {
+        await api.delete(`/tasks/${id}`);
+        fetchTasks();
+        showToast(true, "Task deleted");
+      } catch (err) {
+        showToast(false, err.response?.data?.error || "Failed to delete task");
+      }
+    }, "Delete this task?");
   };
 
   // Memos
@@ -284,7 +284,12 @@ const SuperuserPanel = () => {
   };
 
   // Complaints
-  const filteredComplaints = complaints.filter(c => !complaintFilter || c.service === complaintFilter);
+  const filteredComplaints = complaints.filter(c => {
+    const serviceOk = !complaintFilter || c.service === complaintFilter;
+    const startOk = !complaintDateRange.start || new Date(c.createdAt) >= new Date(complaintDateRange.start);
+    const endOk = !complaintDateRange.end || new Date(c.createdAt) <= new Date(complaintDateRange.end);
+    return serviceOk && startOk && endOk;
+  });
 
   const openAssignComplaint = (complaint) => {
     setComplaintToAssign(complaint);
@@ -376,7 +381,6 @@ const SuperuserPanel = () => {
           <Tab label="Tasks" />
           <Tab label="Memos" />
           <Tab label="Analytics" />
-          <Tab label="Submit Report" />
           <Tab label="Complaints" />
         </Tabs>
 
@@ -519,6 +523,15 @@ const SuperuserPanel = () => {
                     </Select>
                   </FormControl>
                   <TextField type="date" name="deadline" label="Deadline" value={assignForm.deadline} onChange={e => setAssignForm({ ...assignForm, deadline: e.target.value })} InputLabelProps={{ shrink: true }} required />
+                  <FormControl fullWidth>
+                    <InputLabel>Status</InputLabel>
+                    <Select name="status" value={assignForm.status} label="Status" onChange={e => setAssignForm({ ...assignForm, status: e.target.value })}>
+                      <MenuItem value="pending">Pending</MenuItem>
+                      <MenuItem value="in-progress">In Progress</MenuItem>
+                      <MenuItem value="done">Done</MenuItem>
+                      <MenuItem value="approved">Approved</MenuItem>
+                    </Select>
+                  </FormControl>
                   <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
                     <Button type="submit" variant="contained" color="primary">Assign Task</Button>
                     <Button variant="outlined" color="secondary" onClick={() => { setAssignOpen(false); setAssignForm({ title: '', description: '', department: '', assignedTo: '', deadline: '', status: 'pending' }); }}>
@@ -530,7 +543,7 @@ const SuperuserPanel = () => {
             )}
 
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3, flexDirection: isMobile ? "column" : "row" }}>
-              <FormControl sx={{ minWidth: 160 }}>
+              <FormControl sx={{ minWidth: 140 }}>
                 <InputLabel>User</InputLabel>
                 <Select value={filters.user} label="User" onChange={e => setFilters({ ...filters, user: e.target.value })}>
                   <MenuItem value="">All</MenuItem>
@@ -539,7 +552,7 @@ const SuperuserPanel = () => {
                   ))}
                 </Select>
               </FormControl>
-              <FormControl sx={{ minWidth: 180 }}>
+              <FormControl sx={{ minWidth: 160 }}>
                 <InputLabel>Department</InputLabel>
                 <Select value={filters.department} label="Department" onChange={e => setFilters({ ...filters, department: e.target.value })}>
                   <MenuItem value="">All</MenuItem>
@@ -548,13 +561,32 @@ const SuperuserPanel = () => {
                   ))}
                 </Select>
               </FormControl>
+              <FormControl sx={{ minWidth: 140 }}>
+                <InputLabel>Status</InputLabel>
+                <Select value={filters.status} label="Status" onChange={e => setFilters({ ...filters, status: e.target.value })}>
+                  <MenuItem value="">All</MenuItem>
+                  <MenuItem value="pending">Pending</MenuItem>
+                  <MenuItem value="in-progress">In Progress</MenuItem>
+                  <MenuItem value="done">Done</MenuItem>
+                  <MenuItem value="approved">Approved</MenuItem>
+                </Select>
+              </FormControl>
               <TextField type="date" label="Date" value={filters.date} onChange={e => setFilters({ ...filters, date: e.target.value })} InputLabelProps={{ shrink: true }} sx={{ minWidth: 160 }} />
-              <Button onClick={() => setFilters({ user: '', department: '', date: '' })} color="secondary" variant="outlined">
+              <FormControl sx={{ minWidth: 180 }}>
+                <InputLabel>Complaint-linked</InputLabel>
+                <Select value={filters.complaintId} label="Complaint-linked" onChange={e => setFilters({ ...filters, complaintId: e.target.value })}>
+                  <MenuItem value="">All</MenuItem>
+                  {complaints.map(c => (
+                    <MenuItem key={c._id} value={c._id}>{c.plateOrCompany}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Button onClick={() => setFilters({ user: '', department: '', date: '', status: '', complaintId: '' })} color="secondary" variant="outlined">
                 Clear Filters
               </Button>
             </Box>
 
-            <Grid container spacing={3}>
+            <Grid container spacing={2}>
               {Array.isArray(tasks) && tasks.map(task => (
                 <Grid item xs={12} sm={6} md={4} key={task._id}>
                   <TaskCard
@@ -641,20 +673,8 @@ const SuperuserPanel = () => {
           </Paper>
         )}
 
-        {/* Submit Report Tab */}
-        {tab === 5 && (
-          <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Submit / Update Daily Report</Typography>
-            <ReportForm
-              departments={departments}
-              showrooms={showrooms}
-              onSubmit={handleSubmitReport}
-            />
-          </Paper>
-        )}
-
         {/* Complaints Tab */}
-        {tab === 6 && (
+        {tab === 5 && (
           <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Customer Complaints</Typography>
             <Stack direction={isMobile ? "column" : "row"} spacing={2} sx={{ mb: 2 }}>
@@ -671,6 +691,20 @@ const SuperuserPanel = () => {
                   ))}
                 </Select>
               </FormControl>
+              <TextField
+                label="From"
+                type="date"
+                value={complaintDateRange.start}
+                onChange={e => setComplaintDateRange({ ...complaintDateRange, start: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                label="To"
+                type="date"
+                value={complaintDateRange.end}
+                onChange={e => setComplaintDateRange({ ...complaintDateRange, end: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
               <Button variant="outlined" onClick={fetchMaster}>Refresh</Button>
             </Stack>
             <Table size="small">

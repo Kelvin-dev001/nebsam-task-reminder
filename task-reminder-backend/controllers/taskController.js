@@ -26,7 +26,7 @@ exports.createTask = async (req, res) => {
       description,
       department,
       assignedTo: req.user._id,
-      assignedBy: req.user._id, // user creates for themselves
+      assignedBy: req.user._id,
       status: 'pending'
     });
     res.status(201).json(task);
@@ -91,20 +91,21 @@ exports.assignTask = async (req, res) => {
   }
 };
 
-// For admin/superuser to filter/search tasks
+// For admin/superuser to filter/search tasks (now supports status & complaintId)
 exports.filterTasks = async (req, res) => {
   try {
-    const { user, department, date } = req.query;
+    const { user, department, date, status, complaintId } = req.query;
     let filter = {};
     if (user) filter.assignedTo = user;
     if (department) filter.department = department;
+    if (status) filter.status = status;
+    if (complaintId) filter.complaintId = complaintId;
     if (date) {
       const start = new Date(date);
       const end = new Date(date);
       end.setHours(23, 59, 59, 999);
       filter.createdAt = { $gte: start, $lte: end };
     }
-    // RBAC: admin only sees tasks they assigned; superuser sees all
     if (req.user.role === 'admin') {
       filter.assignedBy = req.user._id;
     }
@@ -121,12 +122,11 @@ exports.updateTask = async (req, res) => {
     const updates = req.body;
     const filter = { _id: req.params.id };
     if (req.user.role === 'admin') {
-      filter.assignedBy = req.user._id; // admin can only edit tasks they assigned
+      filter.assignedBy = req.user._id;
     }
     const task = await Task.findOneAndUpdate(filter, updates, { new: true }).populate('department assignedTo assignedBy');
     if (!task) return res.status(404).json({ message: 'Task not found or not permitted' });
 
-    // If status changed to done, handle complaint resolution
     if (updates.status === 'done') {
       await handleComplaintResolution(task);
     }
@@ -142,7 +142,7 @@ exports.deleteTask = async (req, res) => {
   try {
     const filter = { _id: req.params.id };
     if (req.user.role === 'admin') {
-      filter.assignedBy = req.user._id; // admin can only delete tasks they assigned
+      filter.assignedBy = req.user._id;
     }
     const task = await Task.findOneAndDelete(filter);
     if (!task) return res.status(404).json({ message: 'Task not found or not permitted' });

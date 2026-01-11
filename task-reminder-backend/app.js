@@ -3,6 +3,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
+const morgan = require('morgan');
 const attachUser = require('./middleware/attachUser');
 
 const app = express();
@@ -11,14 +13,22 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB Connected'))
   .catch(err => console.error('MongoDB Error:', err));
 
+// Allow only known frontends
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://nebsam-task-reminder.vercel.app'
+];
+
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://nebsam-task-reminder.vercel.app'
-  ],
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, origin);
+    return cb(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 
+app.use(helmet());
+app.use(morgan('combined'));           // activity logs to stdout (Render logs)
 app.use(express.json());
 app.use(cookieParser());
 app.use(attachUser);
