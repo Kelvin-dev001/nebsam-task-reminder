@@ -28,6 +28,7 @@ app.use('/auth', require('./routes/authRoutes'));
 app.use('/departments', require('./routes/departmentRoutes'));
 app.use('/tasks', require('./routes/taskRoutes'));
 app.use('/admin', require('./routes/adminRoutes'));
+app.use('/complaints', require('./routes/complaintRoutes'));
 app.use('/memos', require('./routes/memoRoutes'));
 
 // Analytics + reports + showrooms

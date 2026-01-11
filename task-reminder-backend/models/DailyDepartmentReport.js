@@ -1,6 +1,52 @@
 const mongoose = require('mongoose');
 
-const trackingMetricsSchema = new mongoose.Schema({
+const govSubSchema = new mongoose.Schema({
+  officeInstall: { type: Number, default: 0 },
+  agentInstall: { type: Number, default: 0 },
+  officeRenewal: { type: Number, default: 0 },
+  agentRenewal: { type: Number, default: 0 },
+  offline: { type: Number, default: 0 },
+  checkups: { type: Number, default: 0 },
+}, { _id: false });
+
+const governorSchema = new mongoose.Schema({
+  nebsam: { type: govSubSchema, default: () => ({}) },
+  mockMombasa: { type: govSubSchema, default: () => ({}) },
+  sinotrack: { type: govSubSchema, default: () => ({}) },
+}, { _id: false });
+
+const officeAgentSchema = new mongoose.Schema({
+  officeInstall: { type: Number, default: 0 },
+  agentInstall: { type: Number, default: 0 },
+  officeRenewal: { type: Number, default: 0 },
+  agentRenewal: { type: Number, default: 0 },
+  offline: { type: Number, default: 0 },   // fuel, vtel
+  checkups: { type: Number, default: 0 },  // fuel, vtel
+}, { _id: false });
+
+const radioSchema = new mongoose.Schema({
+  officeSale: { type: Number, default: 0 },
+  agentSale: { type: Number, default: 0 },
+  officeRenewal: { type: Number, default: 0 },
+  agentRenewal: { type: Number, default: 0 },
+}, { _id: false });
+
+const onlineSchema = new mongoose.Schema({
+  installs: {
+    bluetooth: { type: Number, default: 0 },
+    hybrid: { type: Number, default: 0 },
+    comprehensive: { type: Number, default: 0 },
+    hybridAlarm: { type: Number, default: 0 },
+  },
+  renewals: {
+    bluetooth: { type: Number, default: 0 },
+    hybrid: { type: Number, default: 0 },
+    comprehensive: { type: Number, default: 0 },
+    hybridAlarm: { type: Number, default: 0 },
+  }
+}, { _id: false });
+
+const trackingSchema = new mongoose.Schema({
   offlineVehicles: { type: Number, default: 0 },
   tracker1Install: { type: Number, default: 0 },
   tracker1Renewal: { type: Number, default: 0 },
@@ -10,58 +56,21 @@ const trackingMetricsSchema = new mongoose.Schema({
   magneticRenewal: { type: Number, default: 0 },
 }, { _id: false });
 
-const speedGovMetricsSchema = new mongoose.Schema({
-  mockMombasaInstall: { type: Number, default: 0 },
-  mockMombasaRenewal: { type: Number, default: 0 },
-  nebsamInstall: { type: Number, default: 0 },
-  nebsamRenewal: { type: Number, default: 0 },
-}, { _id: false });
-
-const radioMetricsSchema = new mongoose.Schema({
-  unitSales: { type: Number, default: 0 },
-  renewals: { type: Number, default: 0 },
-}, { _id: false });
-
-const fuelMetricsSchema = new mongoose.Schema({
-  installations: { type: Number, default: 0 },
-  renewals: { type: Number, default: 0 },
-}, { _id: false });
-
-const vtelMetricsSchema = new mongoose.Schema({
-  installations: { type: Number, default: 0 },
-  renewals: { type: Number, default: 0 },
-}, { _id: false });
-
-const onlineMetricsSchema = new mongoose.Schema({
-  installationsByGadget: { type: Map, of: Number, default: {} }, // { "gadgetA": 3, "gadgetB": 1 }
-  renewalsByGadget: { type: Map, of: Number, default: {} },
-  dailyMessages: { type: Number, default: 0 },
-  dailyCalls: { type: Number, default: 0 },
-  dailySalesClosed: { type: Number, default: 0 },
-}, { _id: false });
-
-const dailyDepartmentReportSchema = new mongoose.Schema({
-  reportDate: { type: Date, required: true }, // normalized to 00:00 UTC for the day
+const DailyDepartmentReportSchema = new mongoose.Schema({
+  reportDate: { type: Date, required: true },
   departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: true },
-  showroomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Showroom' }, // only for Tracking
+  showroomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Showroom', default: null },
   submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  notes: { type: String, default: '' },
 
-  // Metrics per department (only one populated per document depending on department)
-  tracking: trackingMetricsSchema,
-  speedGovernor: speedGovMetricsSchema,
-  radio: radioMetricsSchema,
-  fuel: fuelMetricsSchema,
-  vehicleTelematics: vtelMetricsSchema,
-  online: onlineMetricsSchema,
-
-  notes: { type: String, trim: true },
-  // Future-ready revenue
-  revenue: {
-    currency: { type: String, default: 'KES' },
-    amount: { type: Number, default: 0 },
-  }
+  tracking: { type: trackingSchema, default: undefined },
+  speedGovernor: { type: governorSchema, default: undefined },
+  radio: { type: radioSchema, default: undefined },
+  fuel: { type: officeAgentSchema, default: undefined },
+  vehicleTelematics: { type: officeAgentSchema, default: undefined },
+  online: { type: onlineSchema, default: undefined },
 }, { timestamps: true });
 
-dailyDepartmentReportSchema.index({ reportDate: 1, departmentId: 1, showroomId: 1 }, { unique: true });
+DailyDepartmentReportSchema.index({ reportDate: 1, departmentId: 1, showroomId: 1 }, { unique: true });
 
-module.exports = mongoose.model('DailyDepartmentReport', dailyDepartmentReportSchema);
+module.exports = mongoose.model('DailyDepartmentReport', DailyDepartmentReportSchema);

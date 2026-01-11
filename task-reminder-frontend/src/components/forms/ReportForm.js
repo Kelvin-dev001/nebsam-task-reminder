@@ -12,30 +12,30 @@ const defaultMetricsByCode = {
     magneticRenewal: 0
   },
   GOV: {
-    mockMombasaInstall: 0,
-    mockMombasaRenewal: 0,
-    nebsamInstall: 0,
-    nebsamRenewal: 0
+    nebsam: { officeInstall: 0, agentInstall: 0, officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 },
+    mockMombasa: { officeInstall: 0, agentInstall: 0, officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 },
+    sinotrack: { officeInstall: 0, agentInstall: 0, officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 }
   },
-  RADIO: { unitSales: 0, renewals: 0 },
-  FUEL: { installations: 0, renewals: 0 },
-  VTEL: { installations: 0, renewals: 0 },
+  RADIO: {
+    officeSale: 0,
+    agentSale: 0,
+    officeRenewal: 0,
+    agentRenewal: 0
+  },
+  FUEL: {
+    officeInstall: 0, agentInstall: 0,
+    officeRenewal: 0, agentRenewal: 0,
+    offline: 0, checkups: 0
+  },
+  VTEL: {
+    officeInstall: 0, agentInstall: 0,
+    officeRenewal: 0, agentRenewal: 0,
+    offline: 0, checkups: 0
+  },
   ONLINE: {
-    dailyMessages: 0,
-    dailyCalls: 0,
-    dailySalesClosed: 0,
-    installationsByGadget: {},
-    renewalsByGadget: {}
+    installs: { bluetooth: 0, hybrid: 0, comprehensive: 0, hybridAlarm: 0 },
+    renewals: { bluetooth: 0, hybrid: 0, comprehensive: 0, hybridAlarm: 0 }
   }
-};
-
-const parseMapInput = (str) => {
-  if (!str) return {};
-  return str.split(',').reduce((acc, pair) => {
-    const [k, v] = pair.split(':').map(s => s.trim());
-    if (k) acc[k] = Number(v) || 0;
-    return acc;
-  }, {});
 };
 
 const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
@@ -43,126 +43,155 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
   const [departmentId, setDepartmentId] = useState('');
   const [showroomId, setShowroomId] = useState('');
   const [notes, setNotes] = useState('');
-  const [revenue, setRevenue] = useState({ currency: 'KES', amount: 0 });
   const [metrics, setMetrics] = useState({});
-  const [installMap, setInstallMap] = useState('');
-  const [renewMap, setRenewMap] = useState('');
 
   const selectedDept = useMemo(() => departments.find(d => d._id === departmentId), [departments, departmentId]);
   const deptCode = selectedDept?.code;
 
   const ensureMetrics = () => {
     if (!deptCode) return {};
-    return metrics && Object.keys(metrics).length ? metrics : { ...defaultMetricsByCode[deptCode] };
+    if (metrics && Object.keys(metrics).length) return metrics;
+    return JSON.parse(JSON.stringify(defaultMetricsByCode[deptCode] || {}));
   };
 
-  const handleMetricChange = (field, value) => {
-    setMetrics({ ...ensureMetrics(), [field]: Number(value) || 0 });
+  const setMetric = (path, value) => {
+    const m = ensureMetrics();
+    const segments = path.split('.');
+    let ref = m;
+    for (let i = 0; i < segments.length - 1; i++) {
+      if (!ref[segments[i]]) ref[segments[i]] = {};
+      ref = ref[segments[i]];
+    }
+    ref[segments[segments.length - 1]] = Number(value) || 0;
+    setMetrics(m);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!reportDate || !departmentId) return;
-
     const payload = {
       reportDate,
       departmentId,
       showroomId: deptCode === 'TRACK' ? showroomId : null,
       metrics: ensureMetrics(),
-      notes,
-      revenue
+      notes
     };
-
-    if (deptCode === 'ONLINE') {
-      payload.metrics = {
-        ...payload.metrics,
-        installationsByGadget: parseMapInput(installMap),
-        renewalsByGadget: parseMapInput(renewMap)
-      };
-    }
-
     onSubmit && onSubmit(payload);
+  };
+
+  const renderGovGroup = (label, basePath) => (
+    <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
+      <Grid item xs={12}><Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{label}</Typography></Grid>
+      {['officeInstall','agentInstall','officeRenewal','agentRenewal','offline','checkups'].map(f => (
+        <Grid item xs={6} sm={4} key={`${basePath}.${f}`}>
+          <TextField
+            label={f}
+            type="number"
+            value={ensureMetrics()?.[basePath.split('.')[0]]?.[f] ?? 0}
+            onChange={e => setMetric(`${basePath}.${f}`, e.target.value)}
+            fullWidth
+            size="small"
+          />
+        </Grid>
+      ))}
+    </Grid>
+  );
+
+  const renderOfficeAgent = (basePath) => (
+    <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
+      {['officeInstall','agentInstall','officeRenewal','agentRenewal','offline','checkups'].map(f => (
+        <Grid item xs={6} sm={4} key={`${basePath}.${f}`}>
+          <TextField
+            label={f}
+            type="number"
+            value={ensureMetrics()?.[f] ?? 0}
+            onChange={e => setMetric(`${basePath}.${f}`, e.target.value)}
+            fullWidth
+            size="small"
+          />
+        </Grid>
+      ))}
+    </Grid>
+  );
+
+  const renderOnline = () => {
+    const fields = [
+      { label: 'Installs - Bluetooth', path: 'installs.bluetooth' },
+      { label: 'Installs - Hybrid', path: 'installs.hybrid' },
+      { label: 'Installs - Comprehensive', path: 'installs.comprehensive' },
+      { label: 'Installs - Hybrid Alarm', path: 'installs.hybridAlarm' },
+      { label: 'Renewals - Bluetooth', path: 'renewals.bluetooth' },
+      { label: 'Renewals - Hybrid', path: 'renewals.hybrid' },
+      { label: 'Renewals - Comprehensive', path: 'renewals.comprehensive' },
+      { label: 'Renewals - Hybrid Alarm', path: 'renewals.hybridAlarm' },
+    ];
+    return (
+      <Grid container spacing={1.5}>
+        {fields.map(f => (
+          <Grid item xs={6} sm={3} key={f.path}>
+            <TextField
+              label={f.label}
+              type="number"
+              value={ensureMetrics()?.[f.path.split('.')[0]]?.[f.path.split('.')[1]] ?? 0}
+              onChange={e => setMetric(f.path, e.target.value)}
+              fullWidth
+              size="small"
+            />
+          </Grid>
+        ))}
+      </Grid>
+    );
   };
 
   const renderDeptFields = () => {
     switch (deptCode) {
       case 'TRACK':
         return (
-          <>
-            {['offlineVehicles', 'tracker1Install', 'tracker1Renewal', 'tracker2Install', 'tracker2Renewal', 'magneticInstall', 'magneticRenewal']
-              .map(field => (
+          <Grid container spacing={1.5}>
+            {['offlineVehicles','tracker1Install','tracker1Renewal','tracker2Install','tracker2Renewal','magneticInstall','magneticRenewal'].map(f => (
+              <Grid item xs={6} sm={4} key={f}>
                 <TextField
-                  key={field}
-                  label={field}
+                  label={f}
                   type="number"
-                  value={ensureMetrics()[field] ?? 0}
-                  onChange={e => handleMetricChange(field, e.target.value)}
+                  value={ensureMetrics()?.[f] ?? 0}
+                  onChange={e => setMetric(f, e.target.value)}
                   fullWidth
+                  size="small"
                 />
-              ))}
-          </>
+              </Grid>
+            ))}
+          </Grid>
         );
       case 'GOV':
-        return ['mockMombasaInstall', 'mockMombasaRenewal', 'nebsamInstall', 'nebsamRenewal'].map(field => (
-          <TextField
-            key={field}
-            label={field}
-            type="number"
-            value={ensureMetrics()[field] ?? 0}
-            onChange={e => handleMetricChange(field, e.target.value)}
-            fullWidth
-          />
-        ));
-      case 'RADIO':
-        return ['unitSales', 'renewals'].map(field => (
-          <TextField
-            key={field}
-            label={field}
-            type="number"
-            value={ensureMetrics()[field] ?? 0}
-            onChange={e => handleMetricChange(field, e.target.value)}
-            fullWidth
-          />
-        ));
-      case 'FUEL':
-      case 'VTEL':
-        return ['installations', 'renewals'].map(field => (
-          <TextField
-            key={field}
-            label={field}
-            type="number"
-            value={ensureMetrics()[field] ?? 0}
-            onChange={e => handleMetricChange(field, e.target.value)}
-            fullWidth
-          />
-        ));
-      case 'ONLINE':
         return (
           <>
-            {['dailyMessages', 'dailyCalls', 'dailySalesClosed'].map(field => (
-              <TextField
-                key={field}
-                label={field}
-                type="number"
-                value={ensureMetrics()[field] ?? 0}
-                onChange={e => handleMetricChange(field, e.target.value)}
-                fullWidth
-              />
-            ))}
-            <TextField
-              label='Installations by gadget (e.g., "cam:3, router:1")'
-              value={installMap}
-              onChange={e => setInstallMap(e.target.value)}
-              fullWidth
-            />
-            <TextField
-              label='Renewals by gadget (e.g., "cam:1, router:2")'
-              value={renewMap}
-              onChange={e => setRenewMap(e.target.value)}
-              fullWidth
-            />
+            {renderGovGroup('Nebsam Governor', 'nebsam')}
+            {renderGovGroup('Mock Mombasa', 'mockMombasa')}
+            {renderGovGroup('Sinotrack', 'sinotrack')}
           </>
         );
+      case 'RADIO':
+        return (
+          <Grid container spacing={1.5}>
+            {['officeSale','agentSale','officeRenewal','agentRenewal'].map(f => (
+              <Grid item xs={6} sm={3} key={f}>
+                <TextField
+                  label={f}
+                  type="number"
+                  value={ensureMetrics()?.[f] ?? 0}
+                  onChange={e => setMetric(f, e.target.value)}
+                  fullWidth
+                  size="small"
+                />
+              </Grid>
+            ))}
+          </Grid>
+        );
+      case 'FUEL':
+      case 'VTEL':
+        return renderOfficeAgent('');
+      case 'ONLINE':
+        return renderOnline();
       default:
         return <Typography variant="body2" color="text.secondary">Select a department to enter metrics.</Typography>;
     }
@@ -210,14 +239,10 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
 
       <Divider sx={{ my: 1 }} />
       <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Metrics</Typography>
-      <Grid container spacing={2}>
-        <Grid item xs={12}>
-          <Stack spacing={2}>{renderDeptFields()}</Stack>
-        </Grid>
-      </Grid>
+      {renderDeptFields()}
 
       <Divider sx={{ my: 1 }} />
-      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Notes & Revenue (optional)</Typography>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Notes</Typography>
       <TextField
         label="Notes"
         value={notes}
@@ -226,19 +251,6 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
         rows={3}
         fullWidth
       />
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-        <TextField
-          label="Revenue Amount"
-          type="number"
-          value={revenue.amount}
-          onChange={e => setRevenue({ ...revenue, amount: Number(e.target.value) || 0 })}
-        />
-        <TextField
-          label="Currency"
-          value={revenue.currency}
-          onChange={e => setRevenue({ ...revenue, currency: e.target.value || 'KES' })}
-        />
-      </Stack>
 
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-start', gap: 1 }}>
         <Button type="submit" variant="contained">Submit / Update Report</Button>

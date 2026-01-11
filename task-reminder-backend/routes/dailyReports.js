@@ -13,7 +13,7 @@ function normalizeDate(d) {
 
 router.post('/reports', isAuthenticated, async (req, res) => {
   try {
-    const { reportDate, departmentId, showroomId, metrics, notes, revenue } = req.body;
+    const { reportDate, departmentId, showroomId, metrics, notes } = req.body;
     const date = normalizeDate(reportDate);
     if (!reportDate || !departmentId) return res.status(400).json({ error: 'reportDate and departmentId are required' });
 
@@ -32,7 +32,6 @@ router.post('/reports', isAuthenticated, async (req, res) => {
       showroomId: showroomId || null,
       submittedBy: req.user._id,
       notes: notes || '',
-      revenue: revenue || { currency: 'KES', amount: 0 },
       tracking: undefined,
       speedGovernor: undefined,
       radio: undefined,
@@ -40,14 +39,28 @@ router.post('/reports', isAuthenticated, async (req, res) => {
       vehicleTelematics: undefined,
       online: undefined,
     };
+
     switch (dept.code) {
-      case 'TRACK': update.tracking = metrics || {}; break;
-      case 'GOV': update.speedGovernor = metrics || {}; break;
-      case 'RADIO': update.radio = metrics || {}; break;
-      case 'FUEL': update.fuel = metrics || {}; break;
-      case 'VTEL': update.vehicleTelematics = metrics || {}; break;
-      case 'ONLINE': update.online = metrics || {}; break;
-      default: return res.status(400).json({ error: 'Unsupported department code' });
+      case 'TRACK':
+        update.tracking = metrics || {};
+        break;
+      case 'GOV':
+        update.speedGovernor = metrics || {};
+        break;
+      case 'RADIO':
+        update.radio = metrics || {};
+        break;
+      case 'FUEL':
+        update.fuel = metrics || {};
+        break;
+      case 'VTEL':
+        update.vehicleTelematics = metrics || {};
+        break;
+      case 'ONLINE':
+        update.online = metrics || {};
+        break;
+      default:
+        return res.status(400).json({ error: 'Unsupported department code' });
     }
 
     const result = await DailyDepartmentReport.findOneAndUpdate(
