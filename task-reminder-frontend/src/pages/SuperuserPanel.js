@@ -66,6 +66,16 @@ const SuperuserPanel = () => {
   // Complaints
   const [complaints, setComplaints] = useState([]);
   const [complaintFilter, setComplaintFilter] = useState('');
+  const [assignComplaintOpen, setAssignComplaintOpen] = useState(false);
+  const [complaintToAssign, setComplaintToAssign] = useState(null);
+  const [assignComplaintForm, setAssignComplaintForm] = useState({
+    title: '',
+    description: '',
+    department: '',
+    assignedTo: '',
+    deadline: '',
+    status: 'pending'
+  });
 
   // Analytics
   const [analyticsFilters, setAnalyticsFilters] = useState({ startDate: '', endDate: '', departmentId: '', showroomId: '' });
@@ -258,15 +268,38 @@ const SuperuserPanel = () => {
   // Complaints
   const filteredComplaints = complaints.filter(c => !complaintFilter || c.service === complaintFilter);
 
-  // Report submission
-  const handleSubmitReport = async (payload) => {
+  const openAssignComplaint = (complaint) => {
+    setComplaintToAssign(complaint);
+    setAssignComplaintForm({
+      title: `Complaint: ${complaint.plateOrCompany}`,
+      description: complaint.issue,
+      department: '',
+      assignedTo: '',
+      deadline: '',
+      status: 'pending'
+    });
+    setAssignComplaintOpen(true);
+  };
+
+  const handleAssignComplaint = async (e) => {
+    e.preventDefault();
+    if (!complaintToAssign) return;
     try {
-      await api.post('/reports', payload);
-      showToast(true, 'Report submitted/updated');
-      fetchAnalytics();
-      fetchMonthly();
+      await api.post(`/complaints/${complaintToAssign._id}/assign`, {
+        title: assignComplaintForm.title,
+        description: assignComplaintForm.description,
+        department: assignComplaintForm.department,
+        assignedTo: assignComplaintForm.assignedTo,
+        deadline: assignComplaintForm.deadline,
+        status: assignComplaintForm.status
+      });
+      setAssignComplaintOpen(false);
+      setComplaintToAssign(null);
+      fetchMaster(); // refresh complaints + users/departments
+      fetchTasks();  // refresh tasks list
+      showToast(true, "Complaint assigned to task");
     } catch (err) {
-      showToast(false, err.response?.data?.error || 'Failed to submit report');
+      showToast(false, err.response?.data?.error || "Failed to assign complaint");
     }
   };
 
@@ -612,6 +645,7 @@ const SuperuserPanel = () => {
                   <TableCell>Customer</TableCell>
                   <TableCell>Issue</TableCell>
                   <TableCell>Date</TableCell>
+                  <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -625,10 +659,15 @@ const SuperuserPanel = () => {
                     <TableCell>{c.customerName || '—'}</TableCell>
                     <TableCell>{c.issue}</TableCell>
                     <TableCell>{new Date(c.createdAt).toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Button size="small" variant="contained" onClick={() => openAssignComplaint(c)}>
+                        Assign to Task
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {filteredComplaints.length === 0 && (
-                  <TableRow><TableCell colSpan={6}>No complaints found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7}>No complaints found.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -693,6 +732,77 @@ const SuperuserPanel = () => {
         <DialogActions>
           <Button onClick={() => setEditingTask(null)}>Cancel</Button>
           <Button onClick={handleUpdateTask} variant="contained">Save</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Assign Complaint Dialog */}
+      <Dialog open={assignComplaintOpen} onClose={() => setAssignComplaintOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Assign Complaint to Task</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <TextField
+            label="Title"
+            value={assignComplaintForm.title}
+            onChange={e => setAssignComplaintForm({ ...assignComplaintForm, title: e.target.value })}
+            fullWidth
+          />
+          <TextField
+            label="Description"
+            value={assignComplaintForm.description}
+            onChange={e => setAssignComplaintForm({ ...assignComplaintForm, description: e.target.value })}
+            fullWidth
+            multiline
+            rows={3}
+          />
+          <FormControl fullWidth required>
+            <InputLabel>Department</InputLabel>
+            <Select
+              value={assignComplaintForm.department}
+              label="Department"
+              onChange={e => setAssignComplaintForm({ ...assignComplaintForm, department: e.target.value })}
+            >
+              <MenuItem value="">Select</MenuItem>
+              {departments.map(d => (
+                <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth required>
+            <InputLabel>Assign To</InputLabel>
+            <Select
+              value={assignComplaintForm.assignedTo}
+              label="Assign To"
+              onChange={e => setAssignComplaintForm({ ...assignComplaintForm, assignedTo: e.target.value })}
+            >
+              <MenuItem value="">Select</MenuItem>
+              {users.map(u => (
+                <MenuItem key={u._id} value={u._id}>{u.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            type="date"
+            label="Deadline"
+            value={assignComplaintForm.deadline}
+            onChange={e => setAssignComplaintForm({ ...assignComplaintForm, deadline: e.target.value })}
+            InputLabelProps={{ shrink: true }}
+          />
+          <FormControl fullWidth>
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={assignComplaintForm.status}
+              label="Status"
+              onChange={e => setAssignComplaintForm({ ...assignComplaintForm, status: e.target.value })}
+            >
+              <MenuItem value="pending">Pending</MenuItem>
+              <MenuItem value="in-progress">In Progress</MenuItem>
+              <MenuItem value="done">Done</MenuItem>
+              <MenuItem value="approved">Approved</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAssignComplaintOpen(false)}>Cancel</Button>
+          <Button onClick={handleAssignComplaint} variant="contained">Assign</Button>
         </DialogActions>
       </Dialog>
 

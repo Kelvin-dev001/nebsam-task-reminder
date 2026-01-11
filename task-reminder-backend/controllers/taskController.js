@@ -1,4 +1,21 @@
 const Task = require('../models/Task');
+const Complaint = require('../models/Complaint');
+const { sendSms } = require('../utils/sms');
+
+// Helper: resolve complaint and notify customer when task is done
+async function handleComplaintResolution(task) {
+  if (task.complaintId && task.status === 'done') {
+    const complaint = await Complaint.findById(task.complaintId);
+    if (complaint && complaint.status !== 'resolved') {
+      complaint.status = 'resolved';
+      await complaint.save();
+      await sendSms(
+        complaint.mobile,
+        'Your issue has been resolved. Thank you for your patience.'
+      );
+    }
+  }
+}
 
 // For users to create their own tasks (if needed)
 exports.createTask = async (req, res) => {
@@ -26,6 +43,7 @@ exports.updateTaskStatus = async (req, res) => {
     if (!task) return res.status(404).json({ message: 'Task not found' });
     task.status = status;
     await task.save();
+    await handleComplaintResolution(task);
     res.json(task);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -107,6 +125,12 @@ exports.updateTask = async (req, res) => {
     }
     const task = await Task.findOneAndUpdate(filter, updates, { new: true }).populate('department assignedTo assignedBy');
     if (!task) return res.status(404).json({ message: 'Task not found or not permitted' });
+
+    // If status changed to done, handle complaint resolution
+    if (updates.status === 'done') {
+      await handleComplaintResolution(task);
+    }
+
     res.json(task);
   } catch (err) {
     res.status(400).json({ error: err.message });

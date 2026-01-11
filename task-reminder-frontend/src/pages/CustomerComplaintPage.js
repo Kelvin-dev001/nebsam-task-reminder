@@ -11,6 +11,7 @@ const CustomerComplaintPage = () => {
     service: '',
     issue: ''
   });
+  const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState({ open: false, success: true, message: '' });
 
   const loadDepartments = async () => {
@@ -28,12 +29,15 @@ const CustomerComplaintPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       await api.post('/complaints', form, { withCredentials: false });
       setToast({ open: true, success: true, message: 'Complaint submitted successfully' });
       setForm({ customerName: '', plateOrCompany: '', mobile: '', service: '', issue: '' });
     } catch (err) {
       setToast({ open: true, success: false, message: err.response?.data?.error || 'Failed to submit complaint' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -99,7 +103,9 @@ const CustomerComplaintPage = () => {
             rows={4}
           />
           <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
-            <Button type="submit" variant="contained">Submit Complaint</Button>
+            <Button type="submit" variant="contained" disabled={submitting}>
+              {submitting ? 'Submitting...' : 'Submit Complaint'}
+            </Button>
           </Stack>
         </Box>
       </Paper>

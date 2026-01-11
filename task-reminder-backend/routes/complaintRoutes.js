@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const Complaint = require('../models/Complaint');
+const Task = require('../models/Task'); // assumes you have a Task model
 const { isAuthenticated, isSuperuser } = require('../middleware/auth');
+const { sendSms } = require('../utils/sms');
 
-// Public submit (no auth) or require auth as you prefer; here we allow anyone
+// Public submit
 router.post('/complaints', async (req, res) => {
   try {
     const { customerName, plateOrCompany, mobile, service, issue } = req.body;
@@ -11,6 +13,8 @@ router.post('/complaints', async (req, res) => {
       return res.status(400).json({ error: 'plateOrCompany, mobile, service, issue are required' });
     }
     const c = await Complaint.create({ customerName, plateOrCompany, mobile, service, issue });
+    // Thank-you SMS
+    await sendSms(mobile, 'Thank you for your feedback. Your complaint has been received and is being processed. We will update you once it is sorted.');
     res.status(201).json(c);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -22,6 +26,33 @@ router.get('/complaints', isAuthenticated, isSuperuser, async (_req, res) => {
   try {
     const list = await Complaint.find({}).sort({ createdAt: -1 });
     res.json(list);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Superuser: assign complaint -> create task
+router.post('/complaints/:id/assign', isAuthenticated, isSuperuser, async (req, res) => {
+  try {
+    const { title, description, department, assignedTo, deadline, status = 'pending' } = req.body;
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) return res.status(404).json({ error: 'Complaint not found' });
+
+    const task = await Task.create({
+      title: title || `Complaint: ${complaint.plateOrCompany}`,
+      description: description || complaint.issue,
+      department,
+      assignedTo,
+      deadline,
+      status,
+      complaintId: complaint._id
+    });
+
+    complaint.status = 'assigned';
+    complaint.assignedTask = task._id;
+    await complaint.save();
+
+    res.json({ complaint, task });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
