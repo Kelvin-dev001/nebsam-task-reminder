@@ -9,7 +9,7 @@ const KpiCard = ({ title, value, subtitle, trend }) => (
     {trend != null && (
       <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
         <Chip
-          label={`${trend > 0 ? '↑' : trend < 0 ? '↓' : '→'} ${Math.abs(trend).toFixed(1)}% vs ref`}
+          label={`${trend > 0 ? '↑' : trend < 0 ? '↓' : '→'} ${Math.abs(trend).toFixed(1)}% vs last month`}
           color={trend > 0 ? 'success' : trend < 0 ? 'error' : 'default'}
           size="small"
         />
@@ -20,26 +20,22 @@ const KpiCard = ({ title, value, subtitle, trend }) => (
 
 const KpiCards = ({ data = {} }) => {
   const {
-    todaySales = 0,
-    yesterdaySales = 0,
-    pctVsYesterday = null,
-    pctVsLastWeek = null,
+    thisMonthSales = 0,
+    lastMonthSales = 0,
+    pctVsLastMonth = null,
     submission = {}
   } = data;
 
   return (
     <Grid container spacing={2} sx={{ mb: 2 }}>
       <Grid item xs={12} sm={6} md={3}>
-        <KpiCard title="Today Total Activity" value={todaySales} subtitle="Installs/Renewals/Checks" />
+        <KpiCard title="This Month Activity" value={thisMonthSales} subtitle="Installs/Renewals/Checks" />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
-        <KpiCard title="Yesterday Activity" value={yesterdaySales} />
+        <KpiCard title="Last Month Activity" value={lastMonthSales} />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
-        <KpiCard title="% vs Yesterday" value={pctVsYesterday != null ? `${pctVsYesterday.toFixed(1)}%` : '—'} trend={pctVsYesterday} />
-      </Grid>
-      <Grid item xs={12} sm={6} md={3}>
-        <KpiCard title="% vs Last Week Avg" value={pctVsLastWeek != null ? `${pctVsLastWeek.toFixed(1)}%` : '—'} trend={pctVsLastWeek} />
+        <KpiCard title="% vs Last Month" value={pctVsLastMonth != null ? `${pctVsLastMonth.toFixed(1)}%` : '—'} trend={pctVsLastMonth} />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
         <KpiCard

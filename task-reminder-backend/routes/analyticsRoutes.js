@@ -10,55 +10,30 @@ function startOfMonth(dt) { return new Date(Date.UTC(dt.getUTCFullYear(), dt.get
 
 const sumAll = (...paths) => ({ $add: paths.map(p => ({ $ifNull: [p, 0] })) });
 
-const projectActivity = {
-  reportDate: 1,
-  deptCode: { $arrayElemAt: ["$dept.code", 0] },
-  // Tracking
-  trackingInstalls: sumAll("$tracking.tracker1Install", "$tracking.tracker2Install", "$tracking.magneticInstall"),
-  trackingRenewals: sumAll("$tracking.tracker1Renewal", "$tracking.tracker2Renewal", "$tracking.magneticRenewal"),
-  trackingOffline: { $ifNull: ["$tracking.offlineVehicles", 0] },
-  // Governors
-  govInstalls: sumAll(
-    "$speedGovernor.nebsam.officeInstall", "$speedGovernor.nebsam.agentInstall",
-    "$speedGovernor.mockMombasa.officeInstall", "$speedGovernor.mockMombasa.agentInstall",
-    "$speedGovernor.sinotrack.officeInstall", "$speedGovernor.sinotrack.agentInstall"
-  ),
-  govRenewals: sumAll(
-    "$speedGovernor.nebsam.officeRenewal", "$speedGovernor.nebsam.agentRenewal",
-    "$speedGovernor.mockMombasa.officeRenewal", "$speedGovernor.mockMombasa.agentRenewal",
-    "$speedGovernor.sinotrack.officeRenewal", "$speedGovernor.sinotrack.agentRenewal"
-  ),
-  govOffline: sumAll(
-    "$speedGovernor.nebsam.offline", "$speedGovernor.mockMombasa.offline", "$speedGovernor.sinotrack.offline"
-  ),
-  govCheckups: sumAll(
-    "$speedGovernor.nebsam.checkups", "$speedGovernor.mockMombasa.checkups", "$speedGovernor.sinotrack.checkups"
-  ),
-  // Radio
-  radioSales: sumAll("$radio.officeSale", "$radio.agentSale"),
-  radioRenewals: sumAll("$radio.officeRenewal", "$radio.agentRenewal"),
-  // Fuel
-  fuelInstalls: sumAll("$fuel.officeInstall", "$fuel.agentInstall"),
-  fuelRenewals: sumAll("$fuel.officeRenewal", "$fuel.agentRenewal"),
-  fuelOffline: { $ifNull: ["$fuel.offline", 0] },
-  fuelCheckups: { $ifNull: ["$fuel.checkups", 0] },
-  // Vehicle Telematics
-  vtelInstalls: sumAll("$vehicleTelematics.officeInstall", "$vehicleTelematics.agentInstall"),
-  vtelRenewals: sumAll("$vehicleTelematics.officeRenewal", "$vehicleTelematics.agentRenewal"),
-  vtelOffline: { $ifNull: ["$vehicleTelematics.offline", 0] },
-  vtelCheckups: { $ifNull: ["$vehicleTelematics.checkups", 0] },
-  // Online
-  onlineInstalls: sumAll(
-    "$online.installs.bluetooth", "$online.installs.hybrid",
-    "$online.installs.comprehensive", "$online.installs.hybridAlarm"
-  ),
-  onlineRenewals: sumAll(
-    "$online.renewals.bluetooth", "$online.renewals.hybrid",
-    "$online.renewals.comprehensive", "$online.renewals.hybridAlarm"
-  ),
-};
+const salesExpr = sumAll(
+  "$tracking.tracker1Install", "$tracking.tracker1Renewal",
+  "$tracking.tracker2Install", "$tracking.tracker2Renewal",
+  "$tracking.magneticInstall", "$tracking.magneticRenewal",
+  "$tracking.offlineVehicles",
+  "$speedGovernor.nebsam.officeInstall", "$speedGovernor.nebsam.agentInstall",
+  "$speedGovernor.nebsam.officeRenewal", "$speedGovernor.nebsam.agentRenewal",
+  "$speedGovernor.nebsam.offline", "$speedGovernor.nebsam.checkups",
+  "$speedGovernor.mockMombasa.officeInstall", "$speedGovernor.mockMombasa.agentInstall",
+  "$speedGovernor.mockMombasa.officeRenewal", "$speedGovernor.mockMombasa.agentRenewal",
+  "$speedGovernor.mockMombasa.offline", "$speedGovernor.mockMombasa.checkups",
+  "$speedGovernor.sinotrack.officeInstall", "$speedGovernor.sinotrack.agentInstall",
+  "$speedGovernor.sinotrack.officeRenewal", "$speedGovernor.sinotrack.agentRenewal",
+  "$speedGovernor.sinotrack.offline", "$speedGovernor.sinotrack.checkups",
+  "$radio.officeSale", "$radio.agentSale", "$radio.officeRenewal", "$radio.agentRenewal",
+  "$fuel.officeInstall", "$fuel.agentInstall", "$fuel.officeRenewal", "$fuel.agentRenewal", "$fuel.offline", "$fuel.checkups",
+  "$vehicleTelematics.officeInstall", "$vehicleTelematics.agentInstall",
+  "$vehicleTelematics.officeRenewal", "$vehicleTelematics.agentRenewal",
+  "$vehicleTelematics.offline", "$vehicleTelematics.checkups",
+  "$online.installs.bluetooth", "$online.installs.hybrid", "$online.installs.comprehensive", "$online.installs.hybridAlarm",
+  "$online.renewals.bluetooth", "$online.renewals.hybrid", "$online.renewals.comprehensive", "$online.renewals.hybridAlarm"
+);
 
-// Daily rollup (no revenue)
+// Daily rollup (unchanged, revenue removed)
 router.get('/daily', isAuthenticated, isSuperuser, async (req, res) => {
   const { startDate, endDate, departmentId, showroomId } = req.query;
   const match = {};
@@ -91,67 +66,50 @@ router.get('/daily', isAuthenticated, isSuperuser, async (req, res) => {
   }
 });
 
-// Trends (activity proxy)
+// Trends: THIS MONTH vs LAST MONTH
 router.get('/trends', isAuthenticated, isSuperuser, async (req, res) => {
   const { departmentId, showroomId } = req.query;
-  const today = new Date(); today.setUTCHours(0,0,0,0);
-  const yesterday = new Date(today); yesterday.setUTCDate(today.getUTCDate() - 1);
-  const lastWeekStart = new Date(today); lastWeekStart.setUTCDate(today.getUTCDate() - 7);
+  const now = new Date(); now.setUTCHours(0,0,0,0);
+  const curStart = startOfMonth(now);
+  const prevStart = new Date(Date.UTC(curStart.getUTCFullYear(), curStart.getUTCMonth() - 1, 1, 0, 0, 0, 0));
 
   const baseMatch = {};
   if (departmentId) baseMatch.departmentId = departmentId;
   if (showroomId) baseMatch.showroomId = showroomId;
 
-  const salesExpr = sumAll(
-    "$tracking.tracker1Install", "$tracking.tracker1Renewal",
-    "$tracking.tracker2Install", "$tracking.tracker2Renewal",
-    "$tracking.magneticInstall", "$tracking.magneticRenewal",
-    "$tracking.offlineVehicles",
-    "$speedGovernor.nebsam.officeInstall", "$speedGovernor.nebsam.agentInstall",
-    "$speedGovernor.nebsam.officeRenewal", "$speedGovernor.nebsam.agentRenewal",
-    "$speedGovernor.nebsam.offline", "$speedGovernor.nebsam.checkups",
-    "$speedGovernor.mockMombasa.officeInstall", "$speedGovernor.mockMombasa.agentInstall",
-    "$speedGovernor.mockMombasa.officeRenewal", "$speedGovernor.mockMombasa.agentRenewal",
-    "$speedGovernor.mockMombasa.offline", "$speedGovernor.mockMombasa.checkups",
-    "$speedGovernor.sinotrack.officeInstall", "$speedGovernor.sinotrack.agentInstall",
-    "$speedGovernor.sinotrack.officeRenewal", "$speedGovernor.sinotrack.agentRenewal",
-    "$speedGovernor.sinotrack.offline", "$speedGovernor.sinotrack.checkups",
-    "$radio.officeSale", "$radio.agentSale", "$radio.officeRenewal", "$radio.agentRenewal",
-    "$fuel.officeInstall", "$fuel.agentInstall", "$fuel.officeRenewal", "$fuel.agentRenewal", "$fuel.offline", "$fuel.checkups",
-    "$vehicleTelematics.officeInstall", "$vehicleTelematics.agentInstall",
-    "$vehicleTelematics.officeRenewal", "$vehicleTelematics.agentRenewal",
-    "$vehicleTelematics.offline", "$vehicleTelematics.checkups",
-    "$online.installs.bluetooth", "$online.installs.hybrid", "$online.installs.comprehensive", "$online.installs.hybridAlarm",
-    "$online.renewals.bluetooth", "$online.renewals.hybrid", "$online.renewals.comprehensive", "$online.renewals.hybridAlarm"
-  );
+  // helper to aggregate a window
+  const sumWindow = async (start, end) => {
+    const data = await DailyDepartmentReport.aggregate([
+      { $match: { ...baseMatch, reportDate: { $gte: start, $lt: end } } },
+      { $project: { reportDate: 1, sales: salesExpr } },
+      { $group: { _id: null, total: { $sum: "$sales" } } }
+    ]);
+    return data[0]?.total || 0;
+  };
 
-  const agg = await DailyDepartmentReport.aggregate([
-    { $match: { ...baseMatch, reportDate: { $gte: lastWeekStart, $lte: today } } },
+  const thisMonthSales = await sumWindow(curStart, new Date());
+  const lastMonthSales = await sumWindow(prevStart, curStart);
+
+  // keep a recent series (last 45 days) for charts
+  const seriesStart = new Date(now); seriesStart.setUTCDate(seriesStart.getUTCDate() - 45);
+  const series = await DailyDepartmentReport.aggregate([
+    { $match: { ...baseMatch, reportDate: { $gte: seriesStart, $lte: now } } },
     { $project: { reportDate: 1, sales: salesExpr } },
     { $group: { _id: "$reportDate", sales: { $sum: "$sales" } } },
     { $sort: { _id: 1 } }
   ]);
 
-  const map = new Map(agg.map(a => [a._id.toISOString(), a.sales]));
-  const todaySales = map.get(today.toISOString()) || 0;
-  const yestSales = map.get(yesterday.toISOString()) || 0;
-
-  const lastWeekSeries = agg.filter(a => a._id >= lastWeekStart && a._id < today).map(a => a.sales);
-  const lastWeekAvg = lastWeekSeries.length ? (lastWeekSeries.reduce((s,x)=>s+x,0) / lastWeekSeries.length) : 0;
-
-  const pctVsYesterday = yestSales ? ((todaySales - yestSales) / yestSales) * 100 : null;
-  const pctVsLastWeek = lastWeekAvg ? ((todaySales - lastWeekAvg) / lastWeekAvg) * 100 : null;
+  const pctVsLastMonth = lastMonthSales ? ((thisMonthSales - lastMonthSales) / lastMonthSales) * 100 : null;
 
   res.json({
-    todaySales,
-    yesterdaySales: yestSales,
-    pctVsYesterday,
-    pctVsLastWeek,
-    series: agg // {_id: date, sales}
+    thisMonthSales,
+    lastMonthSales,
+    pctVsLastMonth,
+    series
   });
 });
 
-// Submission status
+// Submission status (unchanged)
 router.get('/submission-status', isAuthenticated, isSuperuser, async (req, res) => {
   const { date } = req.query;
   const day = new Date(date || new Date()); day.setUTCHours(0,0,0,0);
@@ -161,18 +119,50 @@ router.get('/submission-status', isAuthenticated, isSuperuser, async (req, res) 
     Showroom.countDocuments({ isActive: true })
   ]);
 
-  const expected = deptCount - 1 + trackingShowrooms;
+  const expected = deptCount - 1 + trackingShowrooms; // Tracking counted per showroom
   const reports = await DailyDepartmentReport.countDocuments({ reportDate: day });
 
   res.json({ date: day, expected, submitted: reports, completion: expected ? reports / expected : 0 });
 });
 
-// Monthly rollup for boss dashboard
+// Monthly endpoint remains (from Sprint 2)
 router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
   try {
     const today = new Date();
     const curStart = startOfMonth(today);
     const prevStart = new Date(Date.UTC(curStart.getUTCFullYear(), curStart.getUTCMonth() - 1, 1, 0, 0, 0, 0));
+
+    const projectActivity = {
+      reportDate: 1,
+      deptCode: { $arrayElemAt: ["$dept.code", 0] },
+      trackingInstalls: sumAll("$tracking.tracker1Install", "$tracking.tracker2Install", "$tracking.magneticInstall"),
+      trackingRenewals: sumAll("$tracking.tracker1Renewal", "$tracking.tracker2Renewal", "$tracking.magneticRenewal"),
+      trackingOffline: { $ifNull: ["$tracking.offlineVehicles", 0] },
+      govInstalls: sumAll(
+        "$speedGovernor.nebsam.officeInstall", "$speedGovernor.nebsam.agentInstall",
+        "$speedGovernor.mockMombasa.officeInstall", "$speedGovernor.mockMombasa.agentInstall",
+        "$speedGovernor.sinotrack.officeInstall", "$speedGovernor.sinotrack.agentInstall"
+      ),
+      govRenewals: sumAll(
+        "$speedGovernor.nebsam.officeRenewal", "$speedGovernor.nebsam.agentRenewal",
+        "$speedGovernor.mockMombasa.officeRenewal", "$speedGovernor.mockMombasa.agentRenewal",
+        "$speedGovernor.sinotrack.officeRenewal", "$speedGovernor.sinotrack.agentRenewal"
+      ),
+      govOffline: sumAll("$speedGovernor.nebsam.offline", "$speedGovernor.mockMombasa.offline", "$speedGovernor.sinotrack.offline"),
+      govCheckups: sumAll("$speedGovernor.nebsam.checkups", "$speedGovernor.mockMombasa.checkups", "$speedGovernor.sinotrack.checkups"),
+      radioSales: sumAll("$radio.officeSale", "$radio.agentSale"),
+      radioRenewals: sumAll("$radio.officeRenewal", "$radio.agentRenewal"),
+      fuelInstalls: sumAll("$fuel.officeInstall", "$fuel.agentInstall"),
+      fuelRenewals: sumAll("$fuel.officeRenewal", "$fuel.agentRenewal"),
+      fuelOffline: { $ifNull: ["$fuel.offline", 0] },
+      fuelCheckups: { $ifNull: ["$fuel.checkups", 0] },
+      vtelInstalls: sumAll("$vehicleTelematics.officeInstall", "$vehicleTelematics.agentInstall"),
+      vtelRenewals: sumAll("$vehicleTelematics.officeRenewal", "$vehicleTelematics.agentRenewal"),
+      vtelOffline: { $ifNull: ["$vehicleTelematics.offline", 0] },
+      vtelCheckups: { $ifNull: ["$vehicleTelematics.checkups", 0] },
+      onlineInstalls: sumAll("$online.installs.bluetooth", "$online.installs.hybrid", "$online.installs.comprehensive", "$online.installs.hybridAlarm"),
+      onlineRenewals: sumAll("$online.renewals.bluetooth", "$online.renewals.hybrid", "$online.renewals.comprehensive", "$online.renewals.hybridAlarm"),
+    };
 
     const aggRange = async (start, end) => {
       const data = await DailyDepartmentReport.aggregate([
@@ -208,7 +198,6 @@ router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
           }
         }
       ]);
-      // Map by code for quick access
       const map = {};
       data.forEach(d => { map[d._id || 'UNKNOWN'] = d; });
       const get = (code, field, def = 0) => map[code]?.[field] ?? def;
