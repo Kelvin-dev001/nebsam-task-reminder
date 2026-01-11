@@ -10,30 +10,36 @@ function startOfMonth(dt) { return new Date(Date.UTC(dt.getUTCFullYear(), dt.get
 
 const sumAll = (...paths) => ({ $add: paths.map(p => ({ $ifNull: [p, 0] })) });
 
+// salesExpr updated: remove mockMombasa installs, remove agentRenewal for radio/fuel/vtel
 const salesExpr = sumAll(
   "$tracking.tracker1Install", "$tracking.tracker1Renewal",
   "$tracking.tracker2Install", "$tracking.tracker2Renewal",
   "$tracking.magneticInstall", "$tracking.magneticRenewal",
   "$tracking.offlineVehicles",
+
   "$speedGovernor.nebsam.officeInstall", "$speedGovernor.nebsam.agentInstall",
   "$speedGovernor.nebsam.officeRenewal", "$speedGovernor.nebsam.agentRenewal",
   "$speedGovernor.nebsam.offline", "$speedGovernor.nebsam.checkups",
-  "$speedGovernor.mockMombasa.officeInstall", "$speedGovernor.mockMombasa.agentInstall",
+
+  // mockMombasa: renewals/offline/checkups only
   "$speedGovernor.mockMombasa.officeRenewal", "$speedGovernor.mockMombasa.agentRenewal",
   "$speedGovernor.mockMombasa.offline", "$speedGovernor.mockMombasa.checkups",
+
   "$speedGovernor.sinotrack.officeInstall", "$speedGovernor.sinotrack.agentInstall",
   "$speedGovernor.sinotrack.officeRenewal", "$speedGovernor.sinotrack.agentRenewal",
   "$speedGovernor.sinotrack.offline", "$speedGovernor.sinotrack.checkups",
-  "$radio.officeSale", "$radio.agentSale", "$radio.officeRenewal", "$radio.agentRenewal",
-  "$fuel.officeInstall", "$fuel.agentInstall", "$fuel.officeRenewal", "$fuel.agentRenewal", "$fuel.offline", "$fuel.checkups",
+
+  "$radio.officeSale", "$radio.agentSale", "$radio.officeRenewal", // agentRenewal removed
+
+  "$fuel.officeInstall", "$fuel.agentInstall", "$fuel.officeRenewal", "$fuel.offline", "$fuel.checkups", // agentRenewal removed
   "$vehicleTelematics.officeInstall", "$vehicleTelematics.agentInstall",
-  "$vehicleTelematics.officeRenewal", "$vehicleTelematics.agentRenewal",
-  "$vehicleTelematics.offline", "$vehicleTelematics.checkups",
+  "$vehicleTelematics.officeRenewal", "$vehicleTelematics.offline", "$vehicleTelematics.checkups", // agentRenewal removed
+
   "$online.installs.bluetooth", "$online.installs.hybrid", "$online.installs.comprehensive", "$online.installs.hybridAlarm",
   "$online.renewals.bluetooth", "$online.renewals.hybrid", "$online.renewals.comprehensive", "$online.renewals.hybridAlarm"
 );
 
-// Daily rollup (unchanged, revenue removed)
+// Daily rollup (unchanged)
 router.get('/daily', isAuthenticated, isSuperuser, async (req, res) => {
   const { startDate, endDate, departmentId, showroomId } = req.query;
   const match = {};
@@ -66,7 +72,7 @@ router.get('/daily', isAuthenticated, isSuperuser, async (req, res) => {
   }
 });
 
-// Trends: THIS MONTH vs LAST MONTH
+// Trends
 router.get('/trends', isAuthenticated, isSuperuser, async (req, res) => {
   const { departmentId, showroomId } = req.query;
   const now = new Date(); now.setUTCHours(0,0,0,0);
@@ -77,7 +83,6 @@ router.get('/trends', isAuthenticated, isSuperuser, async (req, res) => {
   if (departmentId) baseMatch.departmentId = departmentId;
   if (showroomId) baseMatch.showroomId = showroomId;
 
-  // helper to aggregate a window
   const sumWindow = async (start, end) => {
     const data = await DailyDepartmentReport.aggregate([
       { $match: { ...baseMatch, reportDate: { $gte: start, $lt: end } } },
@@ -90,7 +95,6 @@ router.get('/trends', isAuthenticated, isSuperuser, async (req, res) => {
   const thisMonthSales = await sumWindow(curStart, new Date());
   const lastMonthSales = await sumWindow(prevStart, curStart);
 
-  // keep a recent series (last 45 days) for charts
   const seriesStart = new Date(now); seriesStart.setUTCDate(seriesStart.getUTCDate() - 45);
   const series = await DailyDepartmentReport.aggregate([
     { $match: { ...baseMatch, reportDate: { $gte: seriesStart, $lte: now } } },
@@ -125,7 +129,7 @@ router.get('/submission-status', isAuthenticated, isSuperuser, async (req, res) 
   res.json({ date: day, expected, submitted: reports, completion: expected ? reports / expected : 0 });
 });
 
-// Monthly endpoint remains (from Sprint 2)
+// Monthly rollup updated to match field removals
 router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
   try {
     const today = new Date();
@@ -138,9 +142,9 @@ router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
       trackingInstalls: sumAll("$tracking.tracker1Install", "$tracking.tracker2Install", "$tracking.magneticInstall"),
       trackingRenewals: sumAll("$tracking.tracker1Renewal", "$tracking.tracker2Renewal", "$tracking.magneticRenewal"),
       trackingOffline: { $ifNull: ["$tracking.offlineVehicles", 0] },
+
       govInstalls: sumAll(
         "$speedGovernor.nebsam.officeInstall", "$speedGovernor.nebsam.agentInstall",
-        "$speedGovernor.mockMombasa.officeInstall", "$speedGovernor.mockMombasa.agentInstall",
         "$speedGovernor.sinotrack.officeInstall", "$speedGovernor.sinotrack.agentInstall"
       ),
       govRenewals: sumAll(
@@ -150,16 +154,20 @@ router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
       ),
       govOffline: sumAll("$speedGovernor.nebsam.offline", "$speedGovernor.mockMombasa.offline", "$speedGovernor.sinotrack.offline"),
       govCheckups: sumAll("$speedGovernor.nebsam.checkups", "$speedGovernor.mockMombasa.checkups", "$speedGovernor.sinotrack.checkups"),
+
       radioSales: sumAll("$radio.officeSale", "$radio.agentSale"),
-      radioRenewals: sumAll("$radio.officeRenewal", "$radio.agentRenewal"),
+      radioRenewals: sumAll("$radio.officeRenewal"),
+
       fuelInstalls: sumAll("$fuel.officeInstall", "$fuel.agentInstall"),
-      fuelRenewals: sumAll("$fuel.officeRenewal", "$fuel.agentRenewal"),
+      fuelRenewals: sumAll("$fuel.officeRenewal"),
       fuelOffline: { $ifNull: ["$fuel.offline", 0] },
       fuelCheckups: { $ifNull: ["$fuel.checkups", 0] },
+
       vtelInstalls: sumAll("$vehicleTelematics.officeInstall", "$vehicleTelematics.agentInstall"),
-      vtelRenewals: sumAll("$vehicleTelematics.officeRenewal", "$vehicleTelematics.agentRenewal"),
+      vtelRenewals: sumAll("$vehicleTelematics.officeRenewal"),
       vtelOffline: { $ifNull: ["$vehicleTelematics.offline", 0] },
       vtelCheckups: { $ifNull: ["$vehicleTelematics.checkups", 0] },
+
       onlineInstalls: sumAll("$online.installs.bluetooth", "$online.installs.hybrid", "$online.installs.comprehensive", "$online.installs.hybridAlarm"),
       onlineRenewals: sumAll("$online.renewals.bluetooth", "$online.renewals.hybrid", "$online.renewals.comprehensive", "$online.renewals.hybridAlarm"),
     };

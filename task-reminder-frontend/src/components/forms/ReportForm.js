@@ -1,5 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Box, TextField, Button, FormControl, InputLabel, Select, MenuItem, Grid, Typography, Divider, Stack } from '@mui/material';
+import {
+  Box, TextField, Button, FormControl, InputLabel, Select, MenuItem,
+  Grid, Typography, Divider, Stack, Accordion, AccordionSummary, AccordionDetails
+} from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const defaultMetricsByCode = {
   TRACK: {
@@ -13,23 +17,22 @@ const defaultMetricsByCode = {
   },
   GOV: {
     nebsam: { officeInstall: 0, agentInstall: 0, officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 },
-    mockMombasa: { officeInstall: 0, agentInstall: 0, officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 },
+    mockMombasa: { officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 }, // installs removed
     sinotrack: { officeInstall: 0, agentInstall: 0, officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 }
   },
   RADIO: {
     officeSale: 0,
     agentSale: 0,
-    officeRenewal: 0,
-    agentRenewal: 0
+    officeRenewal: 0
   },
   FUEL: {
     officeInstall: 0, agentInstall: 0,
-    officeRenewal: 0, agentRenewal: 0,
+    officeRenewal: 0,
     offline: 0, checkups: 0
   },
   VTEL: {
     officeInstall: 0, agentInstall: 0,
-    officeRenewal: 0, agentRenewal: 0,
+    officeRenewal: 0,
     offline: 0, checkups: 0
   },
   ONLINE: {
@@ -63,7 +66,7 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
       ref = ref[segments[i]];
     }
     ref[segments[segments.length - 1]] = Number(value) || 0;
-    setMetrics(m);
+    setMetrics({ ...m });
   };
 
   const handleSubmit = (e) => {
@@ -79,27 +82,33 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
     onSubmit && onSubmit(payload);
   };
 
-  const renderGovGroup = (label, basePath) => (
-    <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
-      <Grid item xs={12}><Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{label}</Typography></Grid>
-      {['officeInstall','agentInstall','officeRenewal','agentRenewal','offline','checkups'].map(f => (
-        <Grid item xs={6} sm={4} key={`${basePath}.${f}`}>
-          <TextField
-            label={f}
-            type="number"
-            value={ensureMetrics()?.[basePath.split('.')[0]]?.[f] ?? 0}
-            onChange={e => setMetric(`${basePath}.${f}`, e.target.value)}
-            fullWidth
-            size="small"
-          />
+  const renderGovGroup = (label, basePath, fields) => (
+    <Accordion disableGutters defaultExpanded>
+      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{label}</Typography>
+      </AccordionSummary>
+      <AccordionDetails>
+        <Grid container spacing={1.5} sx={{ mb: 0.5 }}>
+          {fields.map(f => (
+            <Grid item xs={6} sm={4} key={`${basePath}.${f}`}>
+              <TextField
+                label={f}
+                type="number"
+                value={ensureMetrics()?.[basePath.split('.')[0]]?.[f] ?? 0}
+                onChange={e => setMetric(`${basePath}.${f}`, e.target.value)}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+          ))}
         </Grid>
-      ))}
-    </Grid>
+      </AccordionDetails>
+    </Accordion>
   );
 
-  const renderOfficeAgent = (basePath) => (
+  const renderOfficeAgent = (basePath, fields) => (
     <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
-      {['officeInstall','agentInstall','officeRenewal','agentRenewal','offline','checkups'].map(f => (
+      {fields.map(f => (
         <Grid item xs={6} sm={4} key={`${basePath}.${f}`}>
           <TextField
             label={f}
@@ -164,17 +173,17 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
         );
       case 'GOV':
         return (
-          <>
-            {renderGovGroup('Nebsam Governor', 'nebsam')}
-            {renderGovGroup('Mock Mombasa', 'mockMombasa')}
-            {renderGovGroup('Sinotrack', 'sinotrack')}
-          </>
+          <Stack spacing={1.5}>
+            {renderGovGroup('Nebsam Governor', 'nebsam', ['officeInstall','agentInstall','officeRenewal','agentRenewal','offline','checkups'])}
+            {renderGovGroup('Mock Mombasa', 'mockMombasa', ['officeRenewal','agentRenewal','offline','checkups'])} {/* installs removed */}
+            {renderGovGroup('Sinotrack', 'sinotrack', ['officeInstall','agentInstall','officeRenewal','agentRenewal','offline','checkups'])}
+          </Stack>
         );
       case 'RADIO':
         return (
           <Grid container spacing={1.5}>
-            {['officeSale','agentSale','officeRenewal','agentRenewal'].map(f => (
-              <Grid item xs={6} sm={3} key={f}>
+            {['officeSale','agentSale','officeRenewal'].map(f => (
+              <Grid item xs={6} sm={4} key={f}>
                 <TextField
                   label={f}
                   type="number"
@@ -189,7 +198,7 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
         );
       case 'FUEL':
       case 'VTEL':
-        return renderOfficeAgent('');
+        return renderOfficeAgent('', ['officeInstall','agentInstall','officeRenewal','offline','checkups']);
       case 'ONLINE':
         return renderOnline();
       default:

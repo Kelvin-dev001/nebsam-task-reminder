@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const govSubSchema = new mongoose.Schema({
+const govSubSchemaFull = new mongoose.Schema({
   officeInstall: { type: Number, default: 0 },
   agentInstall: { type: Number, default: 0 },
   officeRenewal: { type: Number, default: 0 },
@@ -9,26 +9,31 @@ const govSubSchema = new mongoose.Schema({
   checkups: { type: Number, default: 0 },
 }, { _id: false });
 
+const govRenewalOnlySchema = new mongoose.Schema({
+  officeRenewal: { type: Number, default: 0 },
+  agentRenewal: { type: Number, default: 0 },
+  offline: { type: Number, default: 0 },
+  checkups: { type: Number, default: 0 },
+}, { _id: false });
+
 const governorSchema = new mongoose.Schema({
-  nebsam: { type: govSubSchema, default: () => ({}) },
-  mockMombasa: { type: govSubSchema, default: () => ({}) },
-  sinotrack: { type: govSubSchema, default: () => ({}) },
+  nebsam: { type: govSubSchemaFull, default: () => ({}) },
+  mockMombasa: { type: govRenewalOnlySchema, default: () => ({}) }, // installs removed
+  sinotrack: { type: govSubSchemaFull, default: () => ({}) },
 }, { _id: false });
 
 const officeAgentSchema = new mongoose.Schema({
   officeInstall: { type: Number, default: 0 },
   agentInstall: { type: Number, default: 0 },
   officeRenewal: { type: Number, default: 0 },
-  agentRenewal: { type: Number, default: 0 },
-  offline: { type: Number, default: 0 },   // fuel, vtel
-  checkups: { type: Number, default: 0 },  // fuel, vtel
+  offline: { type: Number, default: 0 },
+  checkups: { type: Number, default: 0 },
 }, { _id: false });
 
 const radioSchema = new mongoose.Schema({
   officeSale: { type: Number, default: 0 },
   agentSale: { type: Number, default: 0 },
   officeRenewal: { type: Number, default: 0 },
-  agentRenewal: { type: Number, default: 0 },
 }, { _id: false });
 
 const onlineSchema = new mongoose.Schema({
