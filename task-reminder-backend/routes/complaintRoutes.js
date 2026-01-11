@@ -16,6 +16,7 @@ router.post('/', async (req, res) => {
     await sendSms(mobile, 'Thank you for your feedback. Your complaint has been received and is being processed. We will update you once it is sorted.');
     res.status(201).json(c);
   } catch (err) {
+    console.error('Complaint submit error:', err.response?.data || err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -26,6 +27,7 @@ router.get('/', isAuthenticated, isSuperuser, async (_req, res) => {
     const list = await Complaint.find({}).sort({ createdAt: -1 });
     res.json(list);
   } catch (err) {
+    console.error('Complaint list error:', err.response?.data || err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -34,6 +36,10 @@ router.get('/', isAuthenticated, isSuperuser, async (_req, res) => {
 router.post('/:id/assign', isAuthenticated, isSuperuser, async (req, res) => {
   try {
     const { title, description, department, assignedTo, deadline, status = 'pending' } = req.body;
+    if (!department || !assignedTo) {
+      return res.status(400).json({ error: 'department and assignedTo are required' });
+    }
+
     const complaint = await Complaint.findById(req.params.id);
     if (!complaint) return res.status(404).json({ error: 'Complaint not found' });
 
@@ -42,6 +48,7 @@ router.post('/:id/assign', isAuthenticated, isSuperuser, async (req, res) => {
       description: description || complaint.issue,
       department,
       assignedTo,
+      assignedBy: req.user._id,           // REQUIRED to satisfy Task schema
       deadline,
       status,
       complaintId: complaint._id
@@ -53,6 +60,7 @@ router.post('/:id/assign', isAuthenticated, isSuperuser, async (req, res) => {
 
     res.json({ complaint, task });
   } catch (err) {
+    console.error('Assign complaint error:', err.response?.data || err.message);
     res.status(500).json({ error: err.message });
   }
 });
