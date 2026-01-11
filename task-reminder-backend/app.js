@@ -13,7 +13,6 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB Connected'))
   .catch(err => console.error('MongoDB Error:', err));
 
-// Allow only known frontends
 const allowedOrigins = [
   'http://localhost:3000',
   'https://nebsam-task-reminder.vercel.app'
@@ -28,7 +27,7 @@ app.use(cors({
 }));
 
 app.use(helmet());
-app.use(morgan('combined'));           // activity logs to stdout (Render logs)
+app.use(morgan('combined'));
 app.use(express.json());
 app.use(cookieParser());
 app.use(attachUser);
@@ -42,9 +41,9 @@ app.use('/complaints', require('./routes/complaintRoutes'));
 app.use('/memos', require('./routes/memoRoutes'));
 
 // Analytics + reports + showrooms
-app.use('/analytics', require('./routes/analyticsRoutes'));   // /analytics/daily, /analytics/trends, /analytics/submission-status
-app.use('/', require('./routes/dailyReports'));               // /reports
-app.use('/showrooms', require('./routes/showroomRoutes'));    // /showrooms/list
+app.use('/analytics', require('./routes/analyticsRoutes'));
+app.use('/', require('./routes/dailyReports'));
+app.use('/showrooms', require('./routes/showroomRoutes'));
 
 app.get('/', (req, res) => res.send('Task Reminder API Running'));
 
@@ -53,5 +52,10 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Only start the server if run directly
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
+
+module.exports = app;
