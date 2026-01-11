@@ -7,6 +7,7 @@ const {
   deleteDepartment
 } = require('../controllers/departmentController');
 const { isAuthenticated, isSuperuser } = require('../middleware/auth');
+
 const router = express.Router();
 
 // Public list for complaint form
