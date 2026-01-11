@@ -6,7 +6,7 @@ import {
   AppBar, Toolbar, Typography, Container, Tabs, Tab, Box, Paper, Button,
   IconButton, TextField, MenuItem, Select, InputLabel, FormControl, Grid,
   Divider, useMediaQuery, Snackbar, Alert, Dialog, DialogTitle, DialogContent,
-  DialogActions, Stack
+  DialogActions, Stack, Table, TableBody, TableCell, TableHead, TableRow, Chip
 } from '@mui/material';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -22,6 +22,7 @@ import TrendLineChart from '../components/charts/TrendLineChart';
 import DeptBarChart from '../components/charts/DeptBarChart';
 import ShowroomBarChart from '../components/charts/ShowroomBarChart';
 import ReportForm from '../components/forms/ReportForm';
+import BossMonthlyPies from '../components/charts/BossMonthlyPies';
 
 const SuperuserPanel = () => {
   const { user, logout } = useContext(AuthContext);
@@ -62,31 +63,37 @@ const SuperuserPanel = () => {
   const [memos, setMemos] = useState([]);
   const [memoForm, setMemoForm] = useState({ title: '', message: '' });
 
+  // Complaints
+  const [complaints, setComplaints] = useState([]);
+  const [complaintFilter, setComplaintFilter] = useState('');
+
   // Analytics
   const [analyticsFilters, setAnalyticsFilters] = useState({ startDate: '', endDate: '', departmentId: '', showroomId: '' });
   const [trends, setTrends] = useState({ series: [], todaySales: 0, yesterdaySales: 0, pctVsYesterday: null, pctVsLastWeek: null });
   const [byDept, setByDept] = useState([]);
   const [trackingShowroomRollup, setTrackingShowroomRollup] = useState([]);
   const [submissionStatus, setSubmissionStatus] = useState({});
+  const [monthly, setMonthly] = useState(null);
 
   // Toast
   const [toast, setToast] = useState({ open: false, success: true, message: '' });
-
   const showToast = (success, message) => setToast({ open: true, success, message });
   const closeToast = (_, reason) => { if (reason !== 'clickaway') setToast({ ...toast, open: false }); };
 
   const fetchMaster = async () => {
     try {
-      const [deptRes, usersRes, memosRes, showroomsRes] = await Promise.all([
+      const [deptRes, usersRes, memosRes, showroomsRes, complaintsRes] = await Promise.all([
         api.get('/departments/list'),
         api.get('/admin/users'),
         api.get('/memos'),
-        api.get('/showrooms/list').catch(() => ({ data: [] })) // in case endpoint not present
+        api.get('/showrooms/list').catch(() => ({ data: [] })), // tolerate missing
+        api.get('/complaints').catch(() => ({ data: [] }))      // tolerate missing
       ]);
       setDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
       setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
       setMemos(Array.isArray(memosRes.data) ? memosRes.data : []);
       setShowrooms(Array.isArray(showroomsRes.data) ? showroomsRes.data : []);
+      setComplaints(Array.isArray(complaintsRes.data) ? complaintsRes.data : []);
     } catch (err) {
       setDepartments([]); setUsers([]); setMemos([]); setShowrooms([]);
       showToast(false, err.response?.data?.error || "Failed to load data");
@@ -102,8 +109,43 @@ const SuperuserPanel = () => {
     }
   };
 
+  const fetchAnalytics = async () => {
+    try {
+      const params = { ...analyticsFilters };
+      const [trRes, dailyRes, subRes] = await Promise.all([
+        api.get('/analytics/trends', { params }),
+        api.get('/analytics/daily', { params }),
+        api.get('/analytics/submission-status', { params: { date: analyticsFilters.endDate || analyticsFilters.startDate || new Date().toISOString().slice(0,10) } })
+      ]);
+
+      setTrends({
+        series: trRes.data?.series || trRes.data || [],
+        todaySales: trRes.data?.todaySales || 0,
+        yesterdaySales: trRes.data?.yesterdaySales || 0,
+        pctVsYesterday: trRes.data?.pctVsYesterday ?? null,
+        pctVsLastWeek: trRes.data?.pctVsLastWeek ?? null
+      });
+
+      setByDept(dailyRes.data?.byDept || []);
+      setTrackingShowroomRollup(dailyRes.data?.trackingShowroomRollup || []);
+      setSubmissionStatus(subRes.data || {});
+    } catch (err) {
+      showToast(false, err.response?.data?.error || "Failed to load analytics");
+    }
+  };
+
+  const fetchMonthly = async () => {
+    try {
+      const res = await api.get('/analytics/monthly');
+      setMonthly(res.data);
+    } catch (err) {
+      showToast(false, err.response?.data?.error || "Failed to load monthly overview");
+    }
+  };
+
   useEffect(() => { fetchMaster(); }, []);
   useEffect(() => { fetchTasks(); }, [filters]);
+  useEffect(() => { fetchAnalytics(); /* eslint-disable-next-line */ }, [analyticsFilters.departmentId, analyticsFilters.showroomId]);
 
   // Departments CRUD
   const handleAddDept = async (e) => {
@@ -213,33 +255,8 @@ const SuperuserPanel = () => {
     }
   };
 
-  // Analytics fetch
-  const fetchAnalytics = async () => {
-    try {
-      const params = { ...analyticsFilters };
-      const [trRes, dailyRes, subRes] = await Promise.all([
-        api.get('/analytics/trends', { params }),
-        api.get('/analytics/daily', { params }),
-        api.get('/analytics/submission-status', { params: { date: analyticsFilters.endDate || analyticsFilters.startDate || new Date().toISOString().slice(0,10) } })
-      ]);
-
-      setTrends({
-        series: trRes.data?.series || trRes.data || [],
-        todaySales: trRes.data?.todaySales || 0,
-        yesterdaySales: trRes.data?.yesterdaySales || 0,
-        pctVsYesterday: trRes.data?.pctVsYesterday ?? null,
-        pctVsLastWeek: trRes.data?.pctVsLastWeek ?? null
-      });
-
-      setByDept(dailyRes.data?.byDept || []);
-      setTrackingShowroomRollup(dailyRes.data?.trackingShowroomRollup || []);
-      setSubmissionStatus(subRes.data || {});
-    } catch (err) {
-      showToast(false, err.response?.data?.error || "Failed to load analytics");
-    }
-  };
-
-  useEffect(() => { fetchAnalytics(); /* eslint-disable-next-line */ }, [analyticsFilters.departmentId, analyticsFilters.showroomId]);
+  // Complaints
+  const filteredComplaints = complaints.filter(c => !complaintFilter || c.service === complaintFilter);
 
   // Report submission
   const handleSubmitReport = async (payload) => {
@@ -247,6 +264,7 @@ const SuperuserPanel = () => {
       await api.post('/reports', payload);
       showToast(true, 'Report submitted/updated');
       fetchAnalytics();
+      fetchMonthly();
     } catch (err) {
       showToast(false, err.response?.data?.error || 'Failed to submit report');
     }
@@ -289,6 +307,7 @@ const SuperuserPanel = () => {
           <Tab label="Memos" />
           <Tab label="Analytics" />
           <Tab label="Submit Report" />
+          <Tab label="Complaints" />
         </Tabs>
 
         {/* Users Tab */}
@@ -523,10 +542,13 @@ const SuperuserPanel = () => {
               departments={departments}
               showrooms={showrooms}
             />
-            <Button variant="contained" onClick={fetchAnalytics} sx={{ mb: 2 }}>Refresh Analytics</Button>
+            <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+              <Button variant="contained" onClick={fetchAnalytics}>Refresh Analytics</Button>
+              <Button variant="outlined" onClick={fetchMonthly}>Load Monthly Overview</Button>
+            </Stack>
             <KpiCards data={{ ...trends, submission: submissionStatus }} />
             <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Trend (Sales over time)</Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Trend (Activity over time)</Typography>
               <TrendLineChart data={trends.series || []} />
             </Box>
             <Grid container spacing={2}>
@@ -539,6 +561,13 @@ const SuperuserPanel = () => {
                 <ShowroomBarChart data={trackingShowroomRollup} />
               </Grid>
             </Grid>
+
+            {monthly && (
+              <Box sx={{ mt: 4 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Boss Monthly Overview (This month vs Last month)</Typography>
+                <BossMonthlyPies monthly={monthly} />
+              </Box>
+            )}
           </Paper>
         )}
 
@@ -551,6 +580,58 @@ const SuperuserPanel = () => {
               showrooms={showrooms}
               onSubmit={handleSubmitReport}
             />
+          </Paper>
+        )}
+
+        {/* Complaints Tab */}
+        {tab === 6 && (
+          <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Customer Complaints</Typography>
+            <Stack direction={isMobile ? "column" : "row"} spacing={2} sx={{ mb: 2 }}>
+              <FormControl sx={{ minWidth: 200 }}>
+                <InputLabel>Filter by Service</InputLabel>
+                <Select
+                  value={complaintFilter}
+                  label="Filter by Service"
+                  onChange={e => setComplaintFilter(e.target.value)}
+                >
+                  <MenuItem value="">All</MenuItem>
+                  {departments.map(d => (
+                    <MenuItem key={d._id} value={d.code}>{d.name} ({d.code})</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Button variant="outlined" onClick={fetchMaster}>Refresh</Button>
+            </Stack>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Plate/Company</TableCell>
+                  <TableCell>Mobile</TableCell>
+                  <TableCell>Service</TableCell>
+                  <TableCell>Customer</TableCell>
+                  <TableCell>Issue</TableCell>
+                  <TableCell>Date</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredComplaints.map(c => (
+                  <TableRow key={c._id}>
+                    <TableCell>{c.plateOrCompany}</TableCell>
+                    <TableCell>{c.mobile}</TableCell>
+                    <TableCell>
+                      <Chip label={c.service} size="small" color="primary" variant="outlined" />
+                    </TableCell>
+                    <TableCell>{c.customerName || '—'}</TableCell>
+                    <TableCell>{c.issue}</TableCell>
+                    <TableCell>{new Date(c.createdAt).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+                {filteredComplaints.length === 0 && (
+                  <TableRow><TableCell colSpan={6}>No complaints found.</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
           </Paper>
         )}
       </Container>
