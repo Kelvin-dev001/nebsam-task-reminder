@@ -24,6 +24,12 @@ import ShowroomBarChart from '../components/charts/ShowroomBarChart';
 import ReportForm from '../components/forms/ReportForm';
 import BossMonthlyPies from '../components/charts/BossMonthlyPies';
 
+const statusStyles = {
+  new: { color: 'default', bg: '#f5f5f5' },
+  assigned: { color: 'warning', bg: '#fff7e6' },
+  resolved: { color: 'success', bg: '#e8f5e9' },
+};
+
 const SuperuserPanel = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -318,6 +324,25 @@ const SuperuserPanel = () => {
   const deptLookup = useMemo(() => Object.fromEntries(departments.map(d => [d._id, d.name])), [departments]);
 
   const handleLogout = () => { logout(); navigate("/login"); };
+
+  const complaintRowStyle = (status) => {
+    const key = status || 'new';
+    return {
+      backgroundColor: statusStyles[key]?.bg || '#f5f5f5'
+    };
+  };
+
+  const statusChip = (status) => {
+    const key = status || 'new';
+    return (
+      <Chip
+        label={key.toUpperCase()}
+        size="small"
+        color={statusStyles[key]?.color || 'default'}
+        variant="filled"
+      />
+    );
+  };
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#e3ecfa" }}>
@@ -656,13 +681,14 @@ const SuperuserPanel = () => {
                   <TableCell>Service</TableCell>
                   <TableCell>Customer</TableCell>
                   <TableCell>Issue</TableCell>
+                  <TableCell>Status</TableCell>
                   <TableCell>Date</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredComplaints.map(c => (
-                  <TableRow key={c._id}>
+                  <TableRow key={c._id} sx={complaintRowStyle(c.status)}>
                     <TableCell>{c.plateOrCompany}</TableCell>
                     <TableCell>{c.mobile}</TableCell>
                     <TableCell>
@@ -670,6 +696,7 @@ const SuperuserPanel = () => {
                     </TableCell>
                     <TableCell>{c.customerName || '—'}</TableCell>
                     <TableCell>{c.issue}</TableCell>
+                    <TableCell>{statusChip(c.status)}</TableCell>
                     <TableCell>{new Date(c.createdAt).toLocaleString()}</TableCell>
                     <TableCell>
                       <Button size="small" variant="contained" onClick={() => openAssignComplaint(c)}>
@@ -679,7 +706,7 @@ const SuperuserPanel = () => {
                   </TableRow>
                 ))}
                 {filteredComplaints.length === 0 && (
-                  <TableRow><TableCell colSpan={7}>No complaints found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8}>No complaints found.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
