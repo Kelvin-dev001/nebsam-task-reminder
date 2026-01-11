@@ -153,6 +153,18 @@ const SuperuserPanel = () => {
     }
   };
 
+  // Submit Report (used in the Submit Report tab)
+  const handleSubmitReport = async (payload) => {
+    try {
+      await api.post('/reports', payload);
+      showToast(true, 'Report submitted/updated');
+      fetchAnalytics();
+      fetchMonthly();
+    } catch (err) {
+      showToast(false, err.response?.data?.error || 'Failed to submit report');
+    }
+  };
+
   useEffect(() => { fetchMaster(); }, []);
   useEffect(() => { fetchTasks(); }, [filters]);
   useEffect(() => { fetchAnalytics(); /* eslint-disable-next-line */ }, [analyticsFilters.departmentId, analyticsFilters.showroomId]);
