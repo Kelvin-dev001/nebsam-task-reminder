@@ -16,7 +16,7 @@ const LandingPage = () => {
             NEBSAM 411
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Choose your portal to continue 🎅
+            Choose your portal to continue 
           </Typography>
         </Box>
         <Stack spacing={2}>

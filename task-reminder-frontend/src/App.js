@@ -5,6 +5,7 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import AdminPanel from './pages/AdminPanel';
+import CustomerComplaintPage from './pages/CustomerComplaintPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import SuperuserPanel from './pages/SuperuserPanel';
@@ -31,6 +32,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin-login" element={<AdminLoginPage />} />
           <Route path="/super-login" element={<SuperuserLoginPage />} />
+          <Route path="/complaints" element={<CustomerComplaintPage />} />
           <Route path="/change-password" element={
             <PrivateRoute allowChangePassword={true}>
               <ChangePasswordPage />

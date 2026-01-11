@@ -69,7 +69,7 @@ const SuperuserPanel = () => {
 
   // Analytics
   const [analyticsFilters, setAnalyticsFilters] = useState({ startDate: '', endDate: '', departmentId: '', showroomId: '' });
-  const [trends, setTrends] = useState({ series: [], todaySales: 0, yesterdaySales: 0, pctVsYesterday: null, pctVsLastWeek: null });
+  const [trends, setTrends] = useState({ series: [], thisMonthSales: 0, lastMonthSales: 0, pctVsLastMonth: null });
   const [byDept, setByDept] = useState([]);
   const [trackingShowroomRollup, setTrackingShowroomRollup] = useState([]);
   const [submissionStatus, setSubmissionStatus] = useState({});
@@ -120,10 +120,9 @@ const SuperuserPanel = () => {
 
       setTrends({
         series: trRes.data?.series || trRes.data || [],
-        todaySales: trRes.data?.todaySales || 0,
-        yesterdaySales: trRes.data?.yesterdaySales || 0,
-        pctVsYesterday: trRes.data?.pctVsYesterday ?? null,
-        pctVsLastWeek: trRes.data?.pctVsLastWeek ?? null
+        thisMonthSales: trRes.data?.thisMonthSales || 0,
+        lastMonthSales: trRes.data?.lastMonthSales || 0,
+        pctVsLastMonth: trRes.data?.pctVsLastMonth ?? null
       });
 
       setByDept(dailyRes.data?.byDept || []);
@@ -138,6 +137,7 @@ const SuperuserPanel = () => {
     try {
       const res = await api.get('/analytics/monthly');
       setMonthly(res.data);
+      showToast(true, "Monthly overview loaded");
     } catch (err) {
       showToast(false, err.response?.data?.error || "Failed to load monthly overview");
     }

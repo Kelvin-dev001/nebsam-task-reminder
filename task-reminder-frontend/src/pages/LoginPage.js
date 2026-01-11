@@ -64,7 +64,7 @@ const LoginPage = () => {
             Login
           </Typography>
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2, fontWeight: 500 }}>
-            NEBSAM TASK REMINDER 😀
+            NEBSAM 411
           </Typography>
           <Box component="form" noValidate onSubmit={handleLocalLogin} sx={{ mt: 1 }}>
             <Grid container spacing={isMobile ? 1 : 2}>
