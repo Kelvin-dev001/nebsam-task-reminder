@@ -12,10 +12,20 @@ exports.addDepartment = async (req, res) => {
   }
 };
 
-// List
+// List (authenticated/internal)
 exports.listDepartments = async (_req, res) => {
   try {
     const depts = await Department.find({});
+    res.json(depts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Public list (for complaint form)
+exports.listDepartmentsPublic = async (_req, res) => {
+  try {
+    const depts = await Department.find({}).select('name code').lean();
     res.json(depts);
   } catch (err) {
     res.status(500).json({ error: err.message });
