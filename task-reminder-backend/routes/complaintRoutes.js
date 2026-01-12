@@ -19,21 +19,31 @@ router.post('/', isAuthenticated, async (req, res) => {
       });
     }
 
-    const c = await Complaint.create({
+    const complaint = await Complaint.create({
       customerName: customerName || req.user.name || '',
       plateOrCompany,
       mobile,
       service,
       issue,
+      status: 'new',
       userId: req.user._id, // link to logged-in customer/user
     });
 
-    await sendSms(
-      mobile,
-      'Thank you for your feedback. Your complaint has been received and is being processed. We will update you once it is sorted.'
-    );
+    // SMS on complaint creation
+    try {
+      await sendSms(
+        mobile,
+        'Thank you for your feedback. Your complaint has been received and is being processed. We will update you once it is sorted.'
+      );
+    } catch (smsErr) {
+      console.error(
+        'Complaint create SMS error:',
+        smsErr.response?.data || smsErr.message || smsErr
+      );
+      // do not fail the request because of SMS
+    }
 
-    res.status(201).json(c);
+    res.status(201).json(complaint);
   } catch (err) {
     console.error('Complaint submit error:', err.response?.data || err.message);
     res.status(500).json({ error: err.message });
@@ -54,9 +64,18 @@ router.get('/', isAuthenticated, isSuperuser, async (_req, res) => {
 // Superuser assign -> POST /complaints/:id/assign
 router.post('/:id/assign', isAuthenticated, isSuperuser, async (req, res) => {
   try {
-    const { title, description, department, assignedTo, deadline, status = 'pending' } = req.body;
+    const {
+      title,
+      description,
+      department,
+      assignedTo,
+      deadline,
+      status = 'pending',
+    } = req.body;
     if (!department || !assignedTo) {
-      return res.status(400).json({ error: 'department and assignedTo are required' });
+      return res
+        .status(400)
+        .json({ error: 'department and assignedTo are required' });
     }
 
     const complaint = await Complaint.findById(req.params.id);
@@ -80,6 +99,38 @@ router.post('/:id/assign', isAuthenticated, isSuperuser, async (req, res) => {
     res.json({ complaint, task });
   } catch (err) {
     console.error('Assign complaint error:', err.response?.data || err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Superuser resolve -> POST /complaints/:id/resolve
+router.post('/:id/resolve', isAuthenticated, isSuperuser, async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) return res.status(404).json({ error: 'Complaint not found' });
+
+    complaint.status = 'resolved';
+    await complaint.save();
+
+    // SMS on complaint resolution
+    if (complaint.mobile) {
+      try {
+        await sendSms(
+          complaint.mobile,
+          'Your NEBSAM complaint has been resolved. Thank you for your patience.'
+        );
+      } catch (smsErr) {
+        console.error(
+          'Complaint resolve SMS error:',
+          smsErr.response?.data || smsErr.message || smsErr
+        );
+        // do not fail the request because of SMS
+      }
+    }
+
+    res.json({ complaint });
+  } catch (err) {
+    console.error('Resolve complaint error:', err.response?.data || err.message);
     res.status(500).json({ error: err.message });
   }
 });
