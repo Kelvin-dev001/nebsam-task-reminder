@@ -18,7 +18,34 @@ function otpExpiry() {
   return d;
 }
 
-// Basic E.164 check
+// Normalize phone so DB always stores and queries +2547xxxxxxxx
+function normalizePhone(phone) {
+  if (!phone) return '';
+  let p = phone.trim();
+
+  // If already E.164 with +, just ensure correct pattern later
+  if (p.startsWith('+')) return p;
+
+  // 07xxxxxxxx -> +2547xxxxxxxx
+  if (p.startsWith('0')) {
+    return '+254' + p.slice(1);
+  }
+
+  // 2547xxxxxxxx -> +2547xxxxxxxx
+  if (p.startsWith('254')) {
+    return '+' + p;
+  }
+
+  // 7xxxxxxxx -> +2547xxxxxxxx (KEN-only heuristic)
+  if (p[0] === '7' && p.length === 9) {
+    return '+254' + p;
+  }
+
+  // Fallback: add +
+  return p.startsWith('+') ? p : '+' + p;
+}
+
+// Basic E.164 check (after normalization)
 function isE164(phone) {
   return /^\+[1-9]\d{7,14}$/.test(phone);
 }
@@ -37,15 +64,17 @@ async function setOtp(user, otpPlain) {
  */
 router.post('/signup', async (req, res) => {
   try {
-    const { phone, name } = req.body;
+    let { phone, name } = req.body;
     if (!phone) return res.status(400).json({ error: 'Phone is required' });
+
+    phone = normalizePhone(phone);
     if (!isE164(phone)) {
       return res
         .status(400)
-        .json({ error: 'Phone must be in E.164 format, e.g. +2547xxxxxxx' });
+        .json({ error: 'Phone must be in E.164 format, e.g. +2547XXXXXXX' });
     }
 
-    // Ensure a unique email for customers – you can generate a placeholder
+    // Ensure a unique email for customers – generate a placeholder
     const placeholderEmail = `${phone.replace(/\W/g, '')}@customer.nebsam.local`;
 
     let user = await User.findOne({ phone });
@@ -54,7 +83,7 @@ router.post('/signup', async (req, res) => {
         name: name || phone,
         email: placeholderEmail,      // satisfies required+unique
         username: placeholderEmail,   // or some other unique username
-        phone,
+        phone,                        // stored normalized
         password: await bcrypt.hash(Math.random().toString(36), 10), // temp random
         role: 'customer',
         requiresPasswordChange: true,
@@ -89,12 +118,14 @@ router.post('/signup', async (req, res) => {
  */
 router.post('/verify-signup', async (req, res) => {
   try {
-    const { phone, otp, password } = req.body;
+    let { phone, otp, password } = req.body;
     if (!phone || !otp || !password) {
       return res
         .status(400)
         .json({ error: 'phone, otp and password are required' });
     }
+
+    phone = normalizePhone(phone);
 
     const user = await User.findOne({ phone, role: 'customer' });
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -142,12 +173,14 @@ router.post('/verify-signup', async (req, res) => {
  */
 router.post('/login', async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    let { phone, password } = req.body;
     if (!phone || !password) {
       return res
         .status(400)
         .json({ error: 'phone and password are required' });
     }
+
+    phone = normalizePhone(phone);
 
     const user = await User.findOne({ phone, role: 'customer' });
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -181,10 +214,12 @@ router.post('/login', async (req, res) => {
  */
 router.post('/verify-login', async (req, res) => {
   try {
-    const { phone, otp } = req.body;
+    let { phone, otp } = req.body;
     if (!phone || !otp) {
       return res.status(400).json({ error: 'phone and otp are required' });
     }
+
+    phone = normalizePhone(phone);
 
     const user = await User.findOne({ phone, role: 'customer' });
     if (!user) return res.status(404).json({ error: 'User not found' });
