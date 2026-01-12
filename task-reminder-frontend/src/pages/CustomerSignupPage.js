@@ -9,6 +9,7 @@ import {
   Stack,
 } from '@mui/material';
 import api from '../api';
+import { useNavigate } from 'react-router-dom';
 
 const CustomerSignupPage = () => {
   const [step, setStep] = useState(1);
@@ -19,6 +20,7 @@ const CustomerSignupPage = () => {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
+  const navigate = useNavigate();
 
   const startSignup = async (e) => {
     e.preventDefault();
@@ -43,7 +45,11 @@ const CustomerSignupPage = () => {
     setMsg('');
     try {
       await api.post('/customer-auth/verify-signup', { phone, otp, password });
-      setMsg('Signup complete. You can now log in.');
+      setMsg('Signup complete. Redirecting you to login...');
+      // small delay so user can see the message, then redirect
+      setTimeout(() => {
+        navigate('/customer-login');
+      }, 1500);
     } catch (error) {
       setErr(error.response?.data?.error || 'Failed to verify signup');
     } finally {
@@ -59,7 +65,11 @@ const CustomerSignupPage = () => {
         </Typography>
 
         {step === 1 && (
-          <Box component="form" onSubmit={startSignup} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box
+            component="form"
+            onSubmit={startSignup}
+            sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+          >
             <TextField
               label="Full Name"
               value={name}
@@ -80,7 +90,11 @@ const CustomerSignupPage = () => {
         )}
 
         {step === 2 && (
-          <Box component="form" onSubmit={verifySignup} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box
+            component="form"
+            onSubmit={verifySignup}
+            sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+          >
             <TextField
               label="Phone (E.164)"
               value={phone}
