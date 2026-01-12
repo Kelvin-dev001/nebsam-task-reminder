@@ -22,6 +22,7 @@ import TrendLineChart from '../components/charts/TrendLineChart';
 import DeptBarChart from '../components/charts/DeptBarChart';
 import ShowroomBarChart from '../components/charts/ShowroomBarChart';
 import BossMonthlyOverviewV2 from '../components/BossMonthlyOverviewV2';
+import DeptTrends from '../components/DeptTrends';
 
 const statusStyles = {
   new: { color: 'default', bg: '#f5f5f5' },
@@ -33,7 +34,7 @@ const SuperuserPanel = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [tab, setTab] = useState(0);
 
@@ -60,7 +61,7 @@ const SuperuserPanel = () => {
     department: '',
     assignedTo: '',
     deadline: '',
-    status: 'pending'
+    status: 'pending',
   });
   const [editingTask, setEditingTask] = useState(null);
 
@@ -80,12 +81,22 @@ const SuperuserPanel = () => {
     department: '',
     assignedTo: '',
     deadline: '',
-    status: 'pending'
+    status: 'pending',
   });
 
   // Analytics
-  const [analyticsFilters, setAnalyticsFilters] = useState({ startDate: '', endDate: '', departmentId: '', showroomId: '' });
-  const [trends, setTrends] = useState({ series: [], thisMonthSales: 0, lastMonthSales: 0, pctVsLastMonth: null });
+  const [analyticsFilters, setAnalyticsFilters] = useState({
+    startDate: '',
+    endDate: '',
+    departmentId: '',
+    showroomId: '',
+  });
+  const [trends, setTrends] = useState({
+    series: [],
+    thisMonthSales: 0,
+    lastMonthSales: 0,
+    pctVsLastMonth: null,
+  });
   const [byDept, setByDept] = useState([]);
   const [trackingShowroomRollup, setTrackingShowroomRollup] = useState([]);
   const [submissionStatus, setSubmissionStatus] = useState({});
@@ -94,7 +105,9 @@ const SuperuserPanel = () => {
   // Toast
   const [toast, setToast] = useState({ open: false, success: true, message: '' });
   const showToast = (success, message) => setToast({ open: true, success, message });
-  const closeToast = (_, reason) => { if (reason !== 'clickaway') setToast({ ...toast, open: false }); };
+  const closeToast = (_, reason) => {
+    if (reason !== 'clickaway') setToast((t) => ({ ...t, open: false }));
+  };
 
   const fetchMaster = async () => {
     try {
@@ -103,7 +116,7 @@ const SuperuserPanel = () => {
         api.get('/admin/users'),
         api.get('/memos'),
         api.get('/showrooms/list').catch(() => ({ data: [] })), // tolerate missing
-        api.get('/complaints').catch(() => ({ data: [] }))      // tolerate missing
+        api.get('/complaints').catch(() => ({ data: [] })), // tolerate missing
       ]);
       setDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
       setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
@@ -111,8 +124,11 @@ const SuperuserPanel = () => {
       setShowrooms(Array.isArray(showroomsRes.data) ? showroomsRes.data : []);
       setComplaints(Array.isArray(complaintsRes.data) ? complaintsRes.data : []);
     } catch (err) {
-      setDepartments([]); setUsers([]); setMemos([]); setShowrooms([]);
-      showToast(false, err.response?.data?.error || "Failed to load data");
+      setDepartments([]);
+      setUsers([]);
+      setMemos([]);
+      setShowrooms([]);
+      showToast(false, err.response?.data?.error || 'Failed to load data');
     }
   };
 
@@ -120,7 +136,7 @@ const SuperuserPanel = () => {
     try {
       const tasksRes = await api.get('/tasks/filter', { params: filters });
       setTasks(Array.isArray(tasksRes.data) ? tasksRes.data : []);
-    } catch (err) {
+    } catch {
       setTasks([]);
     }
   };
@@ -131,21 +147,28 @@ const SuperuserPanel = () => {
       const [trRes, dailyRes, subRes] = await Promise.all([
         api.get('/analytics/trends', { params }),
         api.get('/analytics/daily', { params }),
-        api.get('/analytics/submission-status', { params: { date: analyticsFilters.endDate || analyticsFilters.startDate || new Date().toISOString().slice(0,10) } })
+        api.get('/analytics/submission-status', {
+          params: {
+            date:
+              analyticsFilters.endDate ||
+              analyticsFilters.startDate ||
+              new Date().toISOString().slice(0, 10),
+          },
+        }),
       ]);
 
       setTrends({
         series: trRes.data?.series || trRes.data || [],
         thisMonthSales: trRes.data?.thisMonthSales || 0,
         lastMonthSales: trRes.data?.lastMonthSales || 0,
-        pctVsLastMonth: trRes.data?.pctVsLastMonth ?? null
+        pctVsLastMonth: trRes.data?.pctVsLastMonth ?? null,
       });
 
       setByDept(dailyRes.data?.byDept || []);
       setTrackingShowroomRollup(dailyRes.data?.trackingShowroomRollup || []);
       setSubmissionStatus(subRes.data || {});
     } catch (err) {
-      showToast(false, err.response?.data?.error || "Failed to load analytics");
+      showToast(false, err.response?.data?.error || 'Failed to load analytics');
     }
   };
 
@@ -153,15 +176,22 @@ const SuperuserPanel = () => {
     try {
       const res = await api.get('/analytics/monthly-series', { params: { months: 6 } });
       setMonthlySeries(res.data);
-      showToast(true, "Monthly overview loaded");
+      showToast(true, 'Monthly overview loaded');
     } catch (err) {
-      showToast(false, err.response?.data?.error || "Failed to load monthly overview");
+      showToast(false, err.response?.data?.error || 'Failed to load monthly overview');
     }
   };
 
-  useEffect(() => { fetchMaster(); }, []);
-  useEffect(() => { fetchTasks(); }, [filters]);
-  useEffect(() => { fetchAnalytics(); /* eslint-disable-next-line */ }, [analyticsFilters.departmentId, analyticsFilters.showroomId]);
+  useEffect(() => {
+    fetchMaster();
+  }, []);
+  useEffect(() => {
+    fetchTasks();
+  }, [filters]);
+  useEffect(() => {
+    fetchAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analyticsFilters.departmentId, analyticsFilters.showroomId]);
 
   // Departments CRUD
   const handleAddDept = async (e) => {
@@ -170,17 +200,24 @@ const SuperuserPanel = () => {
       await api.post('/departments/add', { name: newDept.name, code: newDept.code });
       setNewDept({ name: '', code: '' });
       fetchMaster();
-      showToast(true, "Department added");
-    } catch (err) { showToast(false, err.response?.data?.error || "Failed to add department"); }
+      showToast(true, 'Department added');
+    } catch (err) {
+      showToast(false, err.response?.data?.error || 'Failed to add department');
+    }
   };
 
   const handleUpdateDept = async () => {
     try {
-      await api.put(`/departments/${editingDept._id}`, { name: editingDept.name, code: editingDept.code });
+      await api.put(`/departments/${editingDept._id}`, {
+        name: editingDept.name,
+        code: editingDept.code,
+      });
       setEditingDept(null);
       fetchMaster();
-      showToast(true, "Department updated");
-    } catch (err) { showToast(false, err.response?.data?.error || "Failed to update department"); }
+      showToast(true, 'Department updated');
+    } catch (err) {
+      showToast(false, err.response?.data?.error || 'Failed to update department');
+    }
   };
 
   const confirmAnd = async (action, msg) => {
@@ -190,15 +227,18 @@ const SuperuserPanel = () => {
   };
 
   const handleDeleteDept = async (id) => {
-    await confirmAnd(async () => {
-      try {
-        await api.delete(`/departments/${id}`);
-        fetchMaster();
-        showToast(true, "Department deleted");
-      } catch (err) {
-        showToast(false, err.response?.data?.error || "Failed to delete department");
-      }
-    }, "Delete this department?");
+    await confirmAnd(
+      async () => {
+        try {
+          await api.delete(`/departments/${id}`);
+          fetchMaster();
+          showToast(true, 'Department deleted');
+        } catch (err) {
+          showToast(false, err.response?.data?.error || 'Failed to delete department');
+        }
+      },
+      'Delete this department?'
+    );
   };
 
   // Users
@@ -207,10 +247,10 @@ const SuperuserPanel = () => {
     try {
       if (editingUserId) {
         await api.patch(`/admin/users/${editingUserId}`, userForm);
-        showToast(true, "User updated");
+        showToast(true, 'User updated');
       } else {
         await api.post('/auth/super/create-user', userForm);
-        showToast(true, "User created. OTP sent via SMS (if configured).");
+        showToast(true, 'User created. OTP sent via SMS (if configured).');
       }
       setUserForm({ name: '', email: '', phone: '', role: 'user' });
       setEditingUserId(null);
@@ -221,15 +261,18 @@ const SuperuserPanel = () => {
   };
 
   const handleDeleteUser = async (id) => {
-    await confirmAnd(async () => {
-      try {
-        await api.delete(`/admin/users/${id}`);
-        fetchMaster();
-        showToast(true, "User deleted");
-      } catch (err) {
-        showToast(false, err.response?.data?.error || 'User delete failed');
-      }
-    }, "Delete this user?");
+    await confirmAnd(
+      async () => {
+        try {
+          await api.delete(`/admin/users/${id}`);
+          fetchMaster();
+          showToast(true, 'User deleted');
+        } catch (err) {
+          showToast(false, err.response?.data?.error || 'User delete failed');
+        }
+      },
+      'Delete this user?'
+    );
   };
 
   // Tasks
@@ -238,11 +281,18 @@ const SuperuserPanel = () => {
     try {
       await api.post('/tasks/assign', assignForm);
       setAssignOpen(false);
-      setAssignForm({ title: '', description: '', department: '', assignedTo: '', deadline: '', status: 'pending' });
+      setAssignForm({
+        title: '',
+        description: '',
+        department: '',
+        assignedTo: '',
+        deadline: '',
+        status: 'pending',
+      });
       fetchTasks();
-      showToast(true, "Task assigned");
+      showToast(true, 'Task assigned');
     } catch (err) {
-      showToast(false, err.response?.data?.error || "Failed to assign task");
+      showToast(false, err.response?.data?.error || 'Failed to assign task');
     }
   };
 
@@ -252,22 +302,25 @@ const SuperuserPanel = () => {
       await api.patch(`/tasks/${editingTask._id}`, editingTask);
       setEditingTask(null);
       fetchTasks();
-      showToast(true, "Task updated");
+      showToast(true, 'Task updated');
     } catch (err) {
-      showToast(false, err.response?.data?.error || "Failed to update task");
+      showToast(false, err.response?.data?.error || 'Failed to update task');
     }
   };
 
   const handleDeleteTask = async (id) => {
-    await confirmAnd(async () => {
-      try {
-        await api.delete(`/tasks/${id}`);
-        fetchTasks();
-        showToast(true, "Task deleted");
-      } catch (err) {
-        showToast(false, err.response?.data?.error || "Failed to delete task");
-      }
-    }, "Delete this task?");
+    await confirmAnd(
+      async () => {
+        try {
+          await api.delete(`/tasks/${id}`);
+          fetchTasks();
+          showToast(true, 'Task deleted');
+        } catch (err) {
+          showToast(false, err.response?.data?.error || 'Failed to delete task');
+        }
+      },
+      'Delete this task?'
+    );
   };
 
   // Memos
@@ -277,17 +330,21 @@ const SuperuserPanel = () => {
       await api.post('/memos', memoForm);
       setMemoForm({ title: '', message: '' });
       fetchMaster();
-      showToast(true, "Memo broadcasted");
+      showToast(true, 'Memo broadcasted');
     } catch (err) {
-      showToast(false, err.response?.data?.error || "Failed to broadcast memo");
+      showToast(false, err.response?.data?.error || 'Failed to broadcast memo');
     }
   };
 
   // Complaints
-  const filteredComplaints = complaints.filter(c => {
+  const filteredComplaints = complaints.filter((c) => {
     const serviceOk = !complaintFilter || c.service === complaintFilter;
-    const startOk = !complaintDateRange.start || new Date(c.createdAt) >= new Date(complaintDateRange.start);
-    const endOk = !complaintDateRange.end || new Date(c.createdAt) <= new Date(complaintDateRange.end);
+    const startOk =
+      !complaintDateRange.start ||
+      new Date(c.createdAt) >= new Date(complaintDateRange.start);
+    const endOk =
+      !complaintDateRange.end ||
+      new Date(c.createdAt) <= new Date(complaintDateRange.end);
     return serviceOk && startOk && endOk;
   });
 
@@ -299,7 +356,7 @@ const SuperuserPanel = () => {
       department: '',
       assignedTo: '',
       deadline: '',
-      status: 'pending'
+      status: 'pending',
     });
     setAssignComplaintOpen(true);
   };
@@ -314,26 +371,32 @@ const SuperuserPanel = () => {
         department: assignComplaintForm.department,
         assignedTo: assignComplaintForm.assignedTo,
         deadline: assignComplaintForm.deadline,
-        status: assignComplaintForm.status
+        status: assignComplaintForm.status,
       });
       setAssignComplaintOpen(false);
       setComplaintToAssign(null);
-      fetchMaster(); // refresh complaints + users/departments
-      fetchTasks();  // refresh tasks list
-      showToast(true, "Complaint assigned to task");
+      fetchMaster();
+      fetchTasks();
+      showToast(true, 'Complaint assigned to task');
     } catch (err) {
-      showToast(false, err.response?.data?.error || "Failed to assign complaint");
+      showToast(false, err.response?.data?.error || 'Failed to assign complaint');
     }
   };
 
-  const deptLookup = useMemo(() => Object.fromEntries(departments.map(d => [d._id, d.name])), [departments]);
+  const deptLookup = useMemo(
+    () => Object.fromEntries(departments.map((d) => [d._id, d.name])),
+    [departments]
+  );
 
-  const handleLogout = () => { logout(); navigate("/login"); };
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const complaintRowStyle = (status) => {
     const key = status || 'new';
     return {
-      backgroundColor: statusStyles[key]?.bg || '#f5f5f5'
+      backgroundColor: statusStyles[key]?.bg || '#f5f5f5',
     };
   };
 
@@ -350,11 +413,15 @@ const SuperuserPanel = () => {
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#e3ecfa" }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#e3ecfa' }}>
       <AppBar position="static" color="primary" elevation={2}>
         <Toolbar>
           <Box sx={{ mr: 2, width: 40, height: 40 }}>
-            <img src={logo} alt="Company Logo" style={{ width: 40, height: 40, borderRadius: 8 }} />
+            <img
+              src={logo}
+              alt="Company Logo"
+              style={{ width: 40, height: 40, borderRadius: 8 }}
+            />
           </Box>
           <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700 }}>
             NEBSAM Superuser Panel
@@ -375,166 +442,439 @@ const SuperuserPanel = () => {
       </AppBar>
 
       <Container maxWidth="lg" sx={{ mt: 4, mb: 6 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant={isMobile ? "scrollable" : "fullWidth"}>
-          <Tab label="Users" />
-          <Tab label="Departments" />
-          <Tab label="Tasks" />
-          <Tab label="Memos" />
-          <Tab label="Analytics" />
-          <Tab label="Complaints" />
-        </Tabs>
+        {isMobile ? (
+          <Box sx={{ mt: 2, mb: 2 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Section</InputLabel>
+              <Select
+                value={tab}
+                label="Section"
+                onChange={(e) => setTab(Number(e.target.value))}
+              >
+                <MenuItem value={0}>Users</MenuItem>
+                <MenuItem value={1}>Departments</MenuItem>
+                <MenuItem value={2}>Tasks</MenuItem>
+                <MenuItem value={3}>Memos</MenuItem>
+                <MenuItem value={4}>Analytics</MenuItem>
+                <MenuItem value={5}>Complaints</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        ) : (
+          <Tabs
+            value={tab}
+            onChange={(_, v) => setTab(v)}
+            variant="fullWidth"
+            sx={{ mt: 2 }}
+          >
+            <Tab label="Users" />
+            <Tab label="Departments" />
+            <Tab label="Tasks" />
+            <Tab label="Memos" />
+            <Tab label="Analytics" />
+            <Tab label="Complaints" />
+          </Tabs>
+        )}
 
         {/* Users Tab */}
         {tab === 0 && (
-          <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
+          <Paper
+            elevation={3}
+            sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}
+          >
             <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-              {editingUserId ? "Edit User" : "Create User"}
+              {editingUserId ? 'Edit User' : 'Create User'}
             </Typography>
-            <Box component="form" onSubmit={handleCreateOrUpdateUser} sx={{ display: 'flex', gap: 2, flexDirection: isMobile ? "column" : "row", flexWrap: 'wrap' }}>
-              <TextField label="Full Name" value={userForm.name} onChange={e => setUserForm({ ...userForm, name: e.target.value })} required fullWidth />
-              <TextField label="Email" type="email" value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })} required fullWidth />
-              <TextField label="Phone (E.164, e.g., +15551234567)" value={userForm.phone} onChange={e => setUserForm({ ...userForm, phone: e.target.value })} required fullWidth />
+            <Box
+              component="form"
+              onSubmit={handleCreateOrUpdateUser}
+              sx={{
+                display: 'flex',
+                gap: 2,
+                flexDirection: isMobile ? 'column' : 'row',
+                flexWrap: 'wrap',
+              }}
+            >
+              <TextField
+                label="Full Name"
+                value={userForm.name}
+                onChange={(e) =>
+                  setUserForm({ ...userForm, name: e.target.value })
+                }
+                required
+                fullWidth
+              />
+              <TextField
+                label="Email"
+                type="email"
+                value={userForm.email}
+                onChange={(e) =>
+                  setUserForm({ ...userForm, email: e.target.value })
+                }
+                required
+                fullWidth
+              />
+              <TextField
+                label="Phone (E.164, e.g., +15551234567)"
+                value={userForm.phone}
+                onChange={(e) =>
+                  setUserForm({ ...userForm, phone: e.target.value })
+                }
+                required
+                fullWidth
+              />
               <FormControl sx={{ minWidth: 160 }}>
                 <InputLabel>Role</InputLabel>
-                <Select value={userForm.role} label="Role" onChange={e => setUserForm({ ...userForm, role: e.target.value })}>
+                <Select
+                  value={userForm.role}
+                  label="Role"
+                  onChange={(e) =>
+                    setUserForm({ ...userForm, role: e.target.value })
+                  }
+                >
                   <MenuItem value="user">User</MenuItem>
                   <MenuItem value="admin">Admin</MenuItem>
                   <MenuItem value="superuser">Superuser</MenuItem>
                 </Select>
               </FormControl>
-              <Button type="submit" variant="contained" startIcon={<AddCircleIcon />}>
-                {editingUserId ? "Update User" : "Create User"}
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={<AddCircleIcon />}
+              >
+                {editingUserId ? 'Update User' : 'Create User'}
               </Button>
               {editingUserId && (
-                <Button variant="outlined" color="secondary" onClick={() => { setEditingUserId(null); setUserForm({ name: '', email: '', phone: '', role: 'user' }); }}>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => {
+                    setEditingUserId(null);
+                    setUserForm({
+                      name: '',
+                      email: '',
+                      phone: '',
+                      role: 'user',
+                    });
+                  }}
+                >
                   Cancel Edit
                 </Button>
               )}
             </Box>
             <Divider sx={{ my: 3 }} />
             <Grid container spacing={2}>
-              {Array.isArray(users) && users.map(u => (
-                <Grid item xs={12} sm={6} md={4} key={u._id}>
-                  <Paper sx={{ p: 2, borderRadius: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Box>
-                      <Typography sx={{ fontWeight: 600 }}>{u.name}</Typography>
-                      <Typography variant="body2" color="text.secondary">{u.email}</Typography>
-                      <Typography variant="caption" color="secondary">{u.role}</Typography>
-                      {u.requiresPasswordChange && (
-                        <Typography variant="caption" color="error" sx={{ display: 'block' }}>
-                          Requires password change
+              {Array.isArray(users) &&
+                users.map((u) => (
+                  <Grid item xs={12} sm={6} md={4} key={u._id}>
+                    <Paper
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Box>
+                        <Typography sx={{ fontWeight: 600 }}>
+                          {u.name}
                         </Typography>
-                      )}
-                    </Box>
-                    <Box>
-                      <IconButton color="primary" onClick={() => { setEditingUserId(u._id); setUserForm({ name: u.name, email: u.email, phone: '', role: u.role }); }}>
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton color="error" onClick={() => handleDeleteUser(u._id)}>
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                  </Paper>
+                        <Typography variant="body2" color="text.secondary">
+                          {u.email}
+                        </Typography>
+                        <Typography variant="caption" color="secondary">
+                          {u.role}
+                        </Typography>
+                        {u.requiresPasswordChange && (
+                          <Typography
+                            variant="caption"
+                            color="error"
+                            sx={{ display: 'block' }}
+                          >
+                            Requires password change
+                          </Typography>
+                        )}
+                      </Box>
+                      <Box>
+                        <IconButton
+                          color="primary"
+                          onClick={() => {
+                            setEditingUserId(u._id);
+                            setUserForm({
+                              name: u.name,
+                              email: u.email,
+                              phone: '',
+                              role: u.role,
+                            });
+                          }}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton
+                          color="error"
+                          onClick={() => handleDeleteUser(u._id)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Box>
+                    </Paper>
+                  </Grid>
+                ))}
+              {users.length === 0 && (
+                <Grid item xs={12}>
+                  <Typography>No users found.</Typography>
                 </Grid>
-              ))}
-              {users.length === 0 && <Grid item xs={12}><Typography>No users found.</Typography></Grid>}
+              )}
             </Grid>
           </Paper>
         )}
 
         {/* Departments Tab */}
         {tab === 1 && (
-          <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Manage Departments</Typography>
-            <Box component="form" onSubmit={handleAddDept} sx={{ display: 'flex', gap: 2, flexDirection: isMobile ? "column" : "row", flexWrap: 'wrap' }}>
+          <Paper
+            elevation={3}
+            sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+              Manage Departments
+            </Typography>
+            <Box
+              component="form"
+              onSubmit={handleAddDept}
+              sx={{
+                display: 'flex',
+                gap: 2,
+                flexDirection: isMobile ? 'column' : 'row',
+                flexWrap: 'wrap',
+              }}
+            >
               <TextField
                 label="Department Name"
                 value={newDept.name}
-                onChange={e => setNewDept({ ...newDept, name: e.target.value })}
+                onChange={(e) =>
+                  setNewDept({ ...newDept, name: e.target.value })
+                }
                 required
                 fullWidth
               />
               <TextField
                 label="Department Code (e.g., TRACK, GOV, RADIO, FUEL, VTEL, ONLINE)"
                 value={newDept.code}
-                onChange={e => setNewDept({ ...newDept, code: e.target.value })}
+                onChange={(e) =>
+                  setNewDept({ ...newDept, code: e.target.value })
+                }
                 required
                 fullWidth
               />
-              <Button type="submit" variant="contained" color="primary" startIcon={<AddCircleIcon />}>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                startIcon={<AddCircleIcon />}
+              >
                 Add Department
               </Button>
             </Box>
             <Divider sx={{ my: 3 }} />
             <Grid container spacing={2}>
-              {Array.isArray(departments) && departments.map(dept => (
-                <Grid item xs={12} sm={6} md={4} key={dept._id}>
-                  <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 2 }}>
-                    <Box>
-                      <Typography fontWeight={600}>{dept.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">{dept.code}</Typography>
-                    </Box>
-                    <Box>
-                      <IconButton color="primary" onClick={() => setEditingDept({ ...dept })}>
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton color="error" onClick={() => handleDeleteDept(dept._id)}>
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                  </Paper>
+              {Array.isArray(departments) &&
+                departments.map((dept) => (
+                  <Grid item xs={12} sm={6} md={4} key={dept._id}>
+                    <Paper
+                      sx={{
+                        p: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderRadius: 2,
+                      }}
+                    >
+                      <Box>
+                        <Typography fontWeight={600}>{dept.name}</Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          {dept.code}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <IconButton
+                          color="primary"
+                          onClick={() => setEditingDept({ ...dept })}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton
+                          color="error"
+                          onClick={() => handleDeleteDept(dept._id)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Box>
+                    </Paper>
+                  </Grid>
+                ))}
+              {departments.length === 0 && (
+                <Grid item xs={12}>
+                  <Typography>No departments found.</Typography>
                 </Grid>
-              ))}
-              {departments.length === 0 && <Grid item xs={12}><Typography>No departments found.</Typography></Grid>}
+              )}
             </Grid>
           </Paper>
         )}
 
         {/* Tasks Tab */}
         {tab === 2 && (
-          <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Manage Tasks</Typography>
-            <Button variant="contained" color="primary" startIcon={<AddCircleIcon />} sx={{ mb: 2 }} onClick={() => setAssignOpen(true)}>
+          <Paper
+            elevation={3}
+            sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+              Manage Tasks
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddCircleIcon />}
+              sx={{ mb: 2 }}
+              onClick={() => setAssignOpen(true)}
+            >
               Assign New Task
             </Button>
 
             {assignOpen && (
               <Paper elevation={2} sx={{ p: 3, mb: 2, borderRadius: 2 }}>
-                <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>Assign Task</Typography>
-                <Box component="form" onSubmit={handleAssignTask} sx={{ display: 'flex', flexDirection: "column", gap: 2 }}>
-                  <TextField label="Title" name="title" value={assignForm.title} onChange={e => setAssignForm({ ...assignForm, title: e.target.value })} required fullWidth />
-                  <TextField label="Description" name="description" value={assignForm.description} onChange={e => setAssignForm({ ...assignForm, description: e.target.value })} fullWidth />
+                <Typography
+                  variant="subtitle1"
+                  sx={{ mb: 2, fontWeight: 600 }}
+                >
+                  Assign Task
+                </Typography>
+                <Box
+                  component="form"
+                  onSubmit={handleAssignTask}
+                  sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+                >
+                  <TextField
+                    label="Title"
+                    name="title"
+                    value={assignForm.title}
+                    onChange={(e) =>
+                      setAssignForm({ ...assignForm, title: e.target.value })
+                    }
+                    required
+                    fullWidth
+                  />
+                  <TextField
+                    label="Description"
+                    name="description"
+                    value={assignForm.description}
+                    onChange={(e) =>
+                      setAssignForm({
+                        ...assignForm,
+                        description: e.target.value,
+                      })
+                    }
+                    fullWidth
+                  />
                   <FormControl fullWidth required>
                     <InputLabel>Department</InputLabel>
-                    <Select name="department" value={assignForm.department} label="Department" onChange={e => setAssignForm({ ...assignForm, department: e.target.value })}>
+                    <Select
+                      name="department"
+                      value={assignForm.department}
+                      label="Department"
+                      onChange={(e) =>
+                        setAssignForm({
+                          ...assignForm,
+                          department: e.target.value,
+                        })
+                      }
+                    >
                       <MenuItem value="">Select</MenuItem>
-                      {Array.isArray(departments) && departments.map(d => (
-                        <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
-                      ))}
+                      {Array.isArray(departments) &&
+                        departments.map((d) => (
+                          <MenuItem key={d._id} value={d._id}>
+                            {d.name}
+                          </MenuItem>
+                        ))}
                     </Select>
                   </FormControl>
                   <FormControl fullWidth required>
                     <InputLabel>Assign To</InputLabel>
-                    <Select name="assignedTo" value={assignForm.assignedTo} label="Assign To" onChange={e => setAssignForm({ ...assignForm, assignedTo: e.target.value })}>
+                    <Select
+                      name="assignedTo"
+                      value={assignForm.assignedTo}
+                      label="Assign To"
+                      onChange={(e) =>
+                        setAssignForm({
+                          ...assignForm,
+                          assignedTo: e.target.value,
+                        })
+                      }
+                    >
                       <MenuItem value="">Select</MenuItem>
-                      {Array.isArray(users) && users.map(u => (
-                        <MenuItem key={u._id} value={u._id}>{u.name}</MenuItem>
-                      ))}
+                      {Array.isArray(users) &&
+                        users.map((u) => (
+                          <MenuItem key={u._id} value={u._id}>
+                            {u.name}
+                          </MenuItem>
+                        ))}
                     </Select>
                   </FormControl>
-                  <TextField type="date" name="deadline" label="Deadline" value={assignForm.deadline} onChange={e => setAssignForm({ ...assignForm, deadline: e.target.value })} InputLabelProps={{ shrink: true }} required />
+                  <TextField
+                    type="date"
+                    name="deadline"
+                    label="Deadline"
+                    value={assignForm.deadline}
+                    onChange={(e) =>
+                      setAssignForm({
+                        ...assignForm,
+                        deadline: e.target.value,
+                      })
+                    }
+                    InputLabelProps={{ shrink: true }}
+                    required
+                  />
                   <FormControl fullWidth>
                     <InputLabel>Status</InputLabel>
-                    <Select name="status" value={assignForm.status} label="Status" onChange={e => setAssignForm({ ...assignForm, status: e.target.value })}>
+                    <Select
+                      name="status"
+                      value={assignForm.status}
+                      label="Status"
+                      onChange={(e) =>
+                        setAssignForm({
+                          ...assignForm,
+                          status: e.target.value,
+                        })
+                      }
+                    >
                       <MenuItem value="pending">Pending</MenuItem>
                       <MenuItem value="in-progress">In Progress</MenuItem>
                       <MenuItem value="done">Done</MenuItem>
                       <MenuItem value="approved">Approved</MenuItem>
                     </Select>
                   </FormControl>
-                  <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
-                    <Button type="submit" variant="contained" color="primary">Assign Task</Button>
-                    <Button variant="outlined" color="secondary" onClick={() => { setAssignOpen(false); setAssignForm({ title: '', description: '', department: '', assignedTo: '', deadline: '', status: 'pending' }); }}>
+                  <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                    <Button type="submit" variant="contained" color="primary">
+                      Assign Task
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="secondary"
+                      onClick={() => {
+                        setAssignOpen(false);
+                        setAssignForm({
+                          title: '',
+                          description: '',
+                          department: '',
+                          assignedTo: '',
+                          deadline: '',
+                          status: 'pending',
+                        });
+                      }}
+                    >
                       Cancel
                     </Button>
                   </Box>
@@ -542,28 +882,60 @@ const SuperuserPanel = () => {
               </Paper>
             )}
 
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3, flexDirection: isMobile ? "column" : "row" }}>
+            <Box
+              sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 2,
+                mb: 3,
+                flexDirection: isMobile ? 'column' : 'row',
+              }}
+            >
               <FormControl sx={{ minWidth: 140 }}>
                 <InputLabel>User</InputLabel>
-                <Select value={filters.user} label="User" onChange={e => setFilters({ ...filters, user: e.target.value })}>
+                <Select
+                  value={filters.user}
+                  label="User"
+                  onChange={(e) =>
+                    setFilters({ ...filters, user: e.target.value })
+                  }
+                >
                   <MenuItem value="">All</MenuItem>
-                  {Array.isArray(users) && users.map(u => (
-                    <MenuItem key={u._id} value={u._id}>{u.name}</MenuItem>
-                  ))}
+                  {Array.isArray(users) &&
+                    users.map((u) => (
+                      <MenuItem key={u._id} value={u._id}>
+                        {u.name}
+                      </MenuItem>
+                    ))}
                 </Select>
               </FormControl>
               <FormControl sx={{ minWidth: 160 }}>
                 <InputLabel>Department</InputLabel>
-                <Select value={filters.department} label="Department" onChange={e => setFilters({ ...filters, department: e.target.value })}>
+                <Select
+                  value={filters.department}
+                  label="Department"
+                  onChange={(e) =>
+                    setFilters({ ...filters, department: e.target.value })
+                  }
+                >
                   <MenuItem value="">All</MenuItem>
-                  {Array.isArray(departments) && departments.map(d => (
-                    <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
-                  ))}
+                  {Array.isArray(departments) &&
+                    departments.map((d) => (
+                      <MenuItem key={d._id} value={d._id}>
+                        {d.name}
+                      </MenuItem>
+                    ))}
                 </Select>
               </FormControl>
               <FormControl sx={{ minWidth: 140 }}>
                 <InputLabel>Status</InputLabel>
-                <Select value={filters.status} label="Status" onChange={e => setFilters({ ...filters, status: e.target.value })}>
+                <Select
+                  value={filters.status}
+                  label="Status"
+                  onChange={(e) =>
+                    setFilters({ ...filters, status: e.target.value })
+                  }
+                >
                   <MenuItem value="">All</MenuItem>
                   <MenuItem value="pending">Pending</MenuItem>
                   <MenuItem value="in-progress">In Progress</MenuItem>
@@ -571,34 +943,79 @@ const SuperuserPanel = () => {
                   <MenuItem value="approved">Approved</MenuItem>
                 </Select>
               </FormControl>
-              <TextField type="date" label="Date" value={filters.date} onChange={e => setFilters({ ...filters, date: e.target.value })} InputLabelProps={{ shrink: true }} sx={{ minWidth: 160 }} />
+              <TextField
+                type="date"
+                label="Date"
+                value={filters.date}
+                onChange={(e) =>
+                  setFilters({ ...filters, date: e.target.value })
+                }
+                InputLabelProps={{ shrink: true }}
+                sx={{ minWidth: 160 }}
+              />
               <FormControl sx={{ minWidth: 180 }}>
                 <InputLabel>Complaint-linked</InputLabel>
-                <Select value={filters.complaintId} label="Complaint-linked" onChange={e => setFilters({ ...filters, complaintId: e.target.value })}>
+                <Select
+                  value={filters.complaintId}
+                  label="Complaint-linked"
+                  onChange={(e) =>
+                    setFilters({
+                      ...filters,
+                      complaintId: e.target.value,
+                    })
+                  }
+                >
                   <MenuItem value="">All</MenuItem>
-                  {complaints.map(c => (
-                    <MenuItem key={c._id} value={c._id}>{c.plateOrCompany}</MenuItem>
+                  {complaints.map((c) => (
+                    <MenuItem key={c._id} value={c._id}>
+                      {c.plateOrCompany}
+                    </MenuItem>
                   ))}
                 </Select>
               </FormControl>
-              <Button onClick={() => setFilters({ user: '', department: '', date: '', status: '', complaintId: '' })} color="secondary" variant="outlined">
+              <Button
+                onClick={() =>
+                  setFilters({
+                    user: '',
+                    department: '',
+                    date: '',
+                    status: '',
+                    complaintId: '',
+                  })
+                }
+                color="secondary"
+                variant="outlined"
+              >
                 Clear Filters
               </Button>
             </Box>
 
             <Grid container spacing={2}>
-              {Array.isArray(tasks) && tasks.map(task => (
-                <Grid item xs={12} sm={6} md={4} key={task._id}>
-                  <TaskCard
-                    task={task}
-                    onEdit={() => setEditingTask({ ...task, department: task.department?._id, assignedTo: task.assignedTo?._id })}
-                    onDelete={() => handleDeleteTask(task._id)}
-                  />
-                </Grid>
-              ))}
+              {Array.isArray(tasks) &&
+                tasks.map((task) => (
+                  <Grid item xs={12} sm={6} md={4} key={task._id}>
+                    <TaskCard
+                      task={task}
+                      onEdit={() =>
+                        setEditingTask({
+                          ...task,
+                          department: task.department?._id,
+                          assignedTo: task.assignedTo?._id,
+                        })
+                      }
+                      onDelete={() => handleDeleteTask(task._id)}
+                    />
+                  </Grid>
+                ))}
               {tasks.length === 0 && (
                 <Grid item xs={12}>
-                  <Paper sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
+                  <Paper
+                    sx={{
+                      p: 4,
+                      textAlign: 'center',
+                      color: 'text.secondary',
+                    }}
+                  >
                     No tasks found for the selected filters.
                   </Paper>
                 </Grid>
@@ -609,35 +1026,82 @@ const SuperuserPanel = () => {
 
         {/* Memos Tab */}
         {tab === 3 && (
-          <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Broadcast Memo</Typography>
-            <Box component="form" onSubmit={handleCreateMemo} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <TextField label="Title" value={memoForm.title} onChange={e => setMemoForm({ ...memoForm, title: e.target.value })} required />
-              <TextField label="Message" value={memoForm.message} onChange={e => setMemoForm({ ...memoForm, message: e.target.value })} required multiline rows={4} />
-              <Button type="submit" variant="contained" startIcon={<AddCircleIcon />}>Send Memo</Button>
+          <Paper
+            elevation={3}
+            sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+              Broadcast Memo
+            </Typography>
+            <Box
+              component="form"
+              onSubmit={handleCreateMemo}
+              sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+            >
+              <TextField
+                label="Title"
+                value={memoForm.title}
+                onChange={(e) =>
+                  setMemoForm({ ...memoForm, title: e.target.value })
+                }
+                required
+              />
+              <TextField
+                label="Message"
+                value={memoForm.message}
+                onChange={(e) =>
+                  setMemoForm({ ...memoForm, message: e.target.value })
+                }
+                required
+                multiline
+                rows={4}
+              />
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={<AddCircleIcon />}
+              >
+                Send Memo
+              </Button>
             </Box>
             <Divider sx={{ my: 3 }} />
             <Grid container spacing={2}>
-              {Array.isArray(memos) && memos.map(m => (
-                <Grid item xs={12} sm={6} md={4} key={m._id}>
-                  <Paper sx={{ p: 2, borderRadius: 2 }}>
-                    <Typography fontWeight={700}>{m.title}</Typography>
-                    <Typography variant="body2" sx={{ mt: 1, mb: 1 }}>{m.message}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      By: {m.createdBy?.name || m.createdBy?.email} — {new Date(m.createdAt).toLocaleString()}
-                    </Typography>
-                  </Paper>
+              {Array.isArray(memos) &&
+                memos.map((m) => (
+                  <Grid item xs={12} sm={6} md={4} key={m._id}>
+                    <Paper sx={{ p: 2, borderRadius: 2 }}>
+                      <Typography fontWeight={700}>{m.title}</Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{ mt: 1, mb: 1 }}
+                      >
+                        {m.message}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        By: {m.createdBy?.name || m.createdBy?.email} —{' '}
+                        {new Date(m.createdAt).toLocaleString()}
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                ))}
+              {memos.length === 0 && (
+                <Grid item xs={12}>
+                  <Typography>No memos yet.</Typography>
                 </Grid>
-              ))}
-              {memos.length === 0 && <Grid item xs={12}><Typography>No memos yet.</Typography></Grid>}
+              )}
             </Grid>
           </Paper>
         )}
 
         {/* Analytics Tab */}
         {tab === 4 && (
-          <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Analytics</Typography>
+          <Paper
+            elevation={3}
+            sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+              Analytics
+            </Typography>
             <Filters
               filters={analyticsFilters}
               onChange={setAnalyticsFilters}
@@ -645,29 +1109,61 @@ const SuperuserPanel = () => {
               showrooms={showrooms}
             />
             <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-              <Button variant="contained" onClick={fetchAnalytics}>Refresh Analytics</Button>
-              <Button variant="outlined" onClick={fetchMonthly}>Load Monthly Overview</Button>
+              <Button variant="contained" onClick={fetchAnalytics}>
+                Refresh Analytics
+              </Button>
+              <Button variant="outlined" onClick={fetchMonthly}>
+                Load Monthly Overview
+              </Button>
             </Stack>
             <KpiCards data={{ ...trends, submission: submissionStatus }} />
             <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Trend (Activity over time)</Typography>
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 700, mb: 1 }}
+              >
+                Trend (Activity over time)
+              </Typography>
               <TrendLineChart data={trends.series || []} />
             </Box>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>By Department</Typography>
+                <Typography
+                  variant="subtitle1"
+                  sx={{ fontWeight: 700, mb: 1 }}
+                >
+                  By Department
+                </Typography>
                 <DeptBarChart data={byDept} deptLookup={deptLookup} />
               </Grid>
               <Grid item xs={12} md={6}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Tracking Showroom Comparison</Typography>
+                <Typography
+                  variant="subtitle1"
+                  sx={{ fontWeight: 700, mb: 1 }}
+                >
+                  Tracking Showroom Comparison
+                </Typography>
                 <ShowroomBarChart data={trackingShowroomRollup} />
               </Grid>
             </Grid>
 
             {monthlySeries && (
               <Box sx={{ mt: 4 }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Boss Monthly Overview (last 6 months)</Typography>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 700, mb: 2 }}
+                >
+                  Boss Monthly Overview (last 6 months)
+                </Typography>
                 <BossMonthlyOverviewV2 monthlySeries={monthlySeries} />
+
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 700, mt: 4, mb: 2 }}
+                >
+                  Department Trends – Installs & Renewals
+                </Typography>
+                <DeptTrends monthlySeries={monthlySeries} />
               </Box>
             )}
           </Paper>
@@ -675,19 +1171,30 @@ const SuperuserPanel = () => {
 
         {/* Complaints Tab */}
         {tab === 5 && (
-          <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Customer Complaints</Typography>
-            <Stack direction={isMobile ? "column" : "row"} spacing={2} sx={{ mb: 2 }}>
+          <Paper
+            elevation={3}
+            sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+              Customer Complaints
+            </Typography>
+            <Stack
+              direction={isMobile ? 'column' : 'row'}
+              spacing={2}
+              sx={{ mb: 2 }}
+            >
               <FormControl sx={{ minWidth: 200 }}>
                 <InputLabel>Filter by Service</InputLabel>
                 <Select
                   value={complaintFilter}
                   label="Filter by Service"
-                  onChange={e => setComplaintFilter(e.target.value)}
+                  onChange={(e) => setComplaintFilter(e.target.value)}
                 >
                   <MenuItem value="">All</MenuItem>
-                  {departments.map(d => (
-                    <MenuItem key={d._id} value={d.code}>{d.name} ({d.code})</MenuItem>
+                  {departments.map((d) => (
+                    <MenuItem key={d._id} value={d.code}>
+                      {d.name} ({d.code})
+                    </MenuItem>
                   ))}
                 </Select>
               </FormControl>
@@ -695,17 +1202,29 @@ const SuperuserPanel = () => {
                 label="From"
                 type="date"
                 value={complaintDateRange.start}
-                onChange={e => setComplaintDateRange({ ...complaintDateRange, start: e.target.value })}
+                onChange={(e) =>
+                  setComplaintDateRange({
+                    ...complaintDateRange,
+                    start: e.target.value,
+                  })
+                }
                 InputLabelProps={{ shrink: true }}
               />
               <TextField
                 label="To"
                 type="date"
                 value={complaintDateRange.end}
-                onChange={e => setComplaintDateRange({ ...complaintDateRange, end: e.target.value })}
+                onChange={(e) =>
+                  setComplaintDateRange({
+                    ...complaintDateRange,
+                    end: e.target.value,
+                  })
+                }
                 InputLabelProps={{ shrink: true }}
               />
-              <Button variant="outlined" onClick={fetchMaster}>Refresh</Button>
+              <Button variant="outlined" onClick={fetchMaster}>
+                Refresh
+              </Button>
             </Stack>
             <Table size="small">
               <TableHead>
@@ -721,26 +1240,39 @@ const SuperuserPanel = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredComplaints.map(c => (
+                {filteredComplaints.map((c) => (
                   <TableRow key={c._id} sx={complaintRowStyle(c.status)}>
                     <TableCell>{c.plateOrCompany}</TableCell>
                     <TableCell>{c.mobile}</TableCell>
                     <TableCell>
-                      <Chip label={c.service} size="small" color="primary" variant="outlined" />
+                      <Chip
+                        label={c.service}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
                     </TableCell>
                     <TableCell>{c.customerName || '—'}</TableCell>
                     <TableCell>{c.issue}</TableCell>
                     <TableCell>{statusChip(c.status)}</TableCell>
-                    <TableCell>{new Date(c.createdAt).toLocaleString()}</TableCell>
                     <TableCell>
-                      <Button size="small" variant="contained" onClick={() => openAssignComplaint(c)}>
+                      {new Date(c.createdAt).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={() => openAssignComplaint(c)}
+                      >
                         Assign to Task
                       </Button>
                     </TableCell>
                   </TableRow>
                 ))}
                 {filteredComplaints.length === 0 && (
-                  <TableRow><TableCell colSpan={8}>No complaints found.</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={8}>No complaints found.</TableCell>
+                  </TableRow>
                 )}
               </TableBody>
             </Table>
@@ -749,52 +1281,137 @@ const SuperuserPanel = () => {
       </Container>
 
       {/* Edit Department Dialog */}
-      <Dialog open={!!editingDept} onClose={() => setEditingDept(null)}>
+      <Dialog
+        open={!!editingDept}
+        onClose={() => setEditingDept(null)}
+      >
         <DialogTitle>Edit Department</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+        <DialogContent
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}
+        >
           <TextField
             label="Department Name"
             value={editingDept?.name || ''}
-            onChange={e => setEditingDept({ ...editingDept, name: e.target.value })}
+            onChange={(e) =>
+              setEditingDept({ ...editingDept, name: e.target.value })
+            }
             fullWidth
           />
           <TextField
             label="Department Code"
             value={editingDept?.code || ''}
-            onChange={e => setEditingDept({ ...editingDept, code: e.target.value })}
+            onChange={(e) =>
+              setEditingDept({ ...editingDept, code: e.target.value })
+            }
             fullWidth
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditingDept(null)}>Cancel</Button>
-          <Button onClick={handleUpdateDept} variant="contained">Save</Button>
+          <Button onClick={handleUpdateDept} variant="contained">
+            Save
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Edit Task Dialog */}
-      <Dialog open={!!editingTask} onClose={() => setEditingTask(null)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={!!editingTask}
+        onClose={() => setEditingTask(null)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Edit Task</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-          <TextField label="Title" value={editingTask?.title || ''} onChange={e => setEditingTask({ ...editingTask, title: e.target.value })} />
-          <TextField label="Description" value={editingTask?.description || ''} onChange={e => setEditingTask({ ...editingTask, description: e.target.value })} multiline rows={3} />
+        <DialogContent
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}
+        >
+          <TextField
+            label="Title"
+            value={editingTask?.title || ''}
+            onChange={(e) =>
+              setEditingTask({ ...editingTask, title: e.target.value })
+            }
+          />
+          <TextField
+            label="Description"
+            value={editingTask?.description || ''}
+            onChange={(e) =>
+              setEditingTask({
+                ...editingTask,
+                description: e.target.value,
+              })
+            }
+            multiline
+            rows={3}
+          />
           <FormControl fullWidth>
             <InputLabel>Department</InputLabel>
-            <Select value={editingTask?.department || ''} label="Department" onChange={e => setEditingTask({ ...editingTask, department: e.target.value })}>
+            <Select
+              value={editingTask?.department || ''}
+              label="Department"
+              onChange={(e) =>
+                setEditingTask({
+                  ...editingTask,
+                  department: e.target.value,
+                })
+              }
+            >
               <MenuItem value="">Select</MenuItem>
-              {departments.map(d => <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>)}
+              {departments.map((d) => (
+                <MenuItem key={d._id} value={d._id}>
+                  {d.name}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
           <FormControl fullWidth>
             <InputLabel>Assign To</InputLabel>
-            <Select value={editingTask?.assignedTo || ''} label="Assign To" onChange={e => setEditingTask({ ...editingTask, assignedTo: e.target.value })}>
-            <MenuItem value="">Select</MenuItem>
-              {users.map(u => <MenuItem key={u._id} value={u._id}>{u.name}</MenuItem>)}
+            <Select
+              value={editingTask?.assignedTo || ''}
+              label="Assign To"
+              onChange={(e) =>
+                setEditingTask({
+                  ...editingTask,
+                  assignedTo: e.target.value,
+                })
+              }
+            >
+              <MenuItem value="">Select</MenuItem>
+              {users.map((u) => (
+                <MenuItem key={u._id} value={u._id}>
+                  {u.name}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
-          <TextField type="date" label="Deadline" value={editingTask?.deadline ? editingTask.deadline.slice(0,10) : ''} onChange={e => setEditingTask({ ...editingTask, deadline: e.target.value })} InputLabelProps={{ shrink: true }} />
+          <TextField
+            type="date"
+            label="Deadline"
+            value={
+              editingTask?.deadline
+                ? editingTask.deadline.slice(0, 10)
+                : ''
+            }
+            onChange={(e) =>
+              setEditingTask({
+                ...editingTask,
+                deadline: e.target.value,
+              })
+            }
+            InputLabelProps={{ shrink: true }}
+          />
           <FormControl fullWidth>
             <InputLabel>Status</InputLabel>
-            <Select value={editingTask?.status || 'pending'} label="Status" onChange={e => setEditingTask({ ...editingTask, status: e.target.value })}>
+            <Select
+              value={editingTask?.status || 'pending'}
+              label="Status"
+              onChange={(e) =>
+                setEditingTask({
+                  ...editingTask,
+                  status: e.target.value,
+                })
+              }
+            >
               <MenuItem value="pending">Pending</MenuItem>
               <MenuItem value="in-progress">In Progress</MenuItem>
               <MenuItem value="done">Done</MenuItem>
@@ -804,24 +1421,43 @@ const SuperuserPanel = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditingTask(null)}>Cancel</Button>
-          <Button onClick={handleUpdateTask} variant="contained">Save</Button>
+          <Button onClick={handleUpdateTask} variant="contained">
+            Save
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Assign Complaint Dialog */}
-      <Dialog open={assignComplaintOpen} onClose={() => setAssignComplaintOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={assignComplaintOpen}
+        onClose={() => setAssignComplaintOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Assign Complaint to Task</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+        <DialogContent
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}
+        >
           <TextField
             label="Title"
             value={assignComplaintForm.title}
-            onChange={e => setAssignComplaintForm({ ...assignComplaintForm, title: e.target.value })}
+            onChange={(e) =>
+              setAssignComplaintForm({
+                ...assignComplaintForm,
+                title: e.target.value,
+              })
+            }
             fullWidth
           />
           <TextField
             label="Description"
             value={assignComplaintForm.description}
-            onChange={e => setAssignComplaintForm({ ...assignComplaintForm, description: e.target.value })}
+            onChange={(e) =>
+              setAssignComplaintForm({
+                ...assignComplaintForm,
+                description: e.target.value,
+              })
+            }
             fullWidth
             multiline
             rows={3}
@@ -831,11 +1467,18 @@ const SuperuserPanel = () => {
             <Select
               value={assignComplaintForm.department}
               label="Department"
-              onChange={e => setAssignComplaintForm({ ...assignComplaintForm, department: e.target.value })}
+              onChange={(e) =>
+                setAssignComplaintForm({
+                  ...assignComplaintForm,
+                  department: e.target.value,
+                })
+              }
             >
               <MenuItem value="">Select</MenuItem>
-              {departments.map(d => (
-                <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
+              {departments.map((d) => (
+                <MenuItem key={d._id} value={d._id}>
+                  {d.name}
+                </MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -844,11 +1487,18 @@ const SuperuserPanel = () => {
             <Select
               value={assignComplaintForm.assignedTo}
               label="Assign To"
-              onChange={e => setAssignComplaintForm({ ...assignComplaintForm, assignedTo: e.target.value })}
+              onChange={(e) =>
+                setAssignComplaintForm({
+                  ...assignComplaintForm,
+                  assignedTo: e.target.value,
+                })
+              }
             >
               <MenuItem value="">Select</MenuItem>
-              {users.map(u => (
-                <MenuItem key={u._id} value={u._id}>{u.name}</MenuItem>
+              {users.map((u) => (
+                <MenuItem key={u._id} value={u._id}>
+                  {u.name}
+                </MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -856,7 +1506,12 @@ const SuperuserPanel = () => {
             type="date"
             label="Deadline"
             value={assignComplaintForm.deadline}
-            onChange={e => setAssignComplaintForm({ ...assignComplaintForm, deadline: e.target.value })}
+            onChange={(e) =>
+              setAssignComplaintForm({
+                ...assignComplaintForm,
+                deadline: e.target.value,
+              })
+            }
             InputLabelProps={{ shrink: true }}
           />
           <FormControl fullWidth>
@@ -864,7 +1519,12 @@ const SuperuserPanel = () => {
             <Select
               value={assignComplaintForm.status}
               label="Status"
-              onChange={e => setAssignComplaintForm({ ...assignComplaintForm, status: e.target.value })}
+              onChange={(e) =>
+                setAssignComplaintForm({
+                  ...assignComplaintForm,
+                  status: e.target.value,
+                })
+              }
             >
               <MenuItem value="pending">Pending</MenuItem>
               <MenuItem value="in-progress">In Progress</MenuItem>
@@ -875,12 +1535,23 @@ const SuperuserPanel = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAssignComplaintOpen(false)}>Cancel</Button>
-          <Button onClick={handleAssignComplaint} variant="contained">Assign</Button>
+          <Button onClick={handleAssignComplaint} variant="contained">
+            Assign
+          </Button>
         </DialogActions>
       </Dialog>
 
-      <Snackbar open={toast.open} autoHideDuration={4000} onClose={closeToast} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
-        <Alert onClose={closeToast} severity={toast.success ? "success" : "error"} sx={{ fontWeight: 700 }}>
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={4000}
+        onClose={closeToast}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={closeToast}
+          severity={toast.success ? 'success' : 'error'}
+          sx={{ fontWeight: 700 }}
+        >
           {toast.message}
         </Alert>
       </Snackbar>
