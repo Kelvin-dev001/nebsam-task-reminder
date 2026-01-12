@@ -21,7 +21,7 @@ import KpiCards from '../components/KpiCards';
 import TrendLineChart from '../components/charts/TrendLineChart';
 import DeptBarChart from '../components/charts/DeptBarChart';
 import ShowroomBarChart from '../components/charts/ShowroomBarChart';
-import BossMonthlyPies from '../components/charts/BossMonthlyPies';
+import BossMonthlyOverviewV2 from '../components/BossMonthlyOverviewV2';
 
 const statusStyles = {
   new: { color: 'default', bg: '#f5f5f5' },
@@ -89,7 +89,7 @@ const SuperuserPanel = () => {
   const [byDept, setByDept] = useState([]);
   const [trackingShowroomRollup, setTrackingShowroomRollup] = useState([]);
   const [submissionStatus, setSubmissionStatus] = useState({});
-  const [monthly, setMonthly] = useState(null);
+  const [monthlySeries, setMonthlySeries] = useState(null);
 
   // Toast
   const [toast, setToast] = useState({ open: false, success: true, message: '' });
@@ -151,8 +151,8 @@ const SuperuserPanel = () => {
 
   const fetchMonthly = async () => {
     try {
-      const res = await api.get('/analytics/monthly');
-      setMonthly(res.data);
+      const res = await api.get('/analytics/monthly-series', { params: { months: 6 } });
+      setMonthlySeries(res.data);
       showToast(true, "Monthly overview loaded");
     } catch (err) {
       showToast(false, err.response?.data?.error || "Failed to load monthly overview");
@@ -664,10 +664,10 @@ const SuperuserPanel = () => {
               </Grid>
             </Grid>
 
-            {monthly && (
+            {monthlySeries && (
               <Box sx={{ mt: 4 }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Boss Monthly Overview (This month vs Last month)</Typography>
-                <BossMonthlyPies monthly={monthly} />
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Boss Monthly Overview (last 6 months)</Typography>
+                <BossMonthlyOverviewV2 monthlySeries={monthlySeries} />
               </Box>
             )}
           </Paper>
