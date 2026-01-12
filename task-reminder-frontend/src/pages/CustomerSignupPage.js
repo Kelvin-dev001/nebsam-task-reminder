@@ -60,22 +60,25 @@ const CustomerSignupPage = () => {
     navigate('/customer-login');
   };
 
-  const goToComplaints = () => {
-    navigate('/customer-complaints');
-  };
-
   return (
     <Container maxWidth="sm" sx={{ mt: 6, mb: 6 }}>
       <Paper elevation={3} sx={{ p: 4, borderRadius: 3 }}>
-        {/* Turn this into a small “customer complaints landing header” */}
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 1, textAlign: 'center' }}>
+        {/* Customer complaints landing header */}
+        <Typography
+          variant="h5"
+          sx={{ fontWeight: 700, mb: 1, textAlign: 'center' }}
+        >
           NEBSAM Customer Complaints Portal
         </Typography>
-        <Typography variant="body2" sx={{ mb: 3, textAlign: 'center' }} color="text.secondary">
-          Raise a complaint, track resolution, and get updates via SMS.
+        <Typography
+          variant="body2"
+          sx={{ mb: 3, textAlign: 'center' }}
+          color="text.secondary"
+        >
+          Create an account to raise complaints and receive SMS updates.
         </Typography>
 
-        {/* Top actions: Login + Go to complaint page (for already-logged-in users) */}
+        {/* Top action: Login for existing customers */}
         <Stack
           direction="row"
           spacing={2}
@@ -83,9 +86,6 @@ const CustomerSignupPage = () => {
         >
           <Button variant="outlined" onClick={goToLogin}>
             Already have an account? Login
-          </Button>
-          <Button variant="text" onClick={goToComplaints}>
-            Go to Complaints Page
           </Button>
         </Stack>
 
