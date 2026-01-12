@@ -1116,36 +1116,16 @@ const SuperuserPanel = () => {
                 Load Monthly Overview
               </Button>
             </Stack>
-            <KpiCards data={{ ...trends, submission: submissionStatus }} />
-            <Box sx={{ mb: 3 }}>
-              <Typography
-                variant="subtitle1"
-                sx={{ fontWeight: 700, mb: 1 }}
-              >
-                Trend (Activity over time)
-              </Typography>
-              <TrendLineChart data={trends.series || []} />
-            </Box>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ fontWeight: 700, mb: 1 }}
-                >
-                  By Department
-                </Typography>
-                <DeptBarChart data={byDept} deptLookup={deptLookup} />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ fontWeight: 700, mb: 1 }}
-                >
-                  Tracking Showroom Comparison
-                </Typography>
-                <ShowroomBarChart data={trackingShowroomRollup} />
-              </Grid>
-            </Grid>
+            <KpiCards data={trends} />
+
+<Grid container spacing={2} sx={{ mt: 1, mb: 2 }}>
+  <Grid item xs={12}>
+    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+      Tracking Showroom Comparison (This Period)
+    </Typography>
+    <ShowroomBarChart data={trackingShowroomRollup} />
+  </Grid>
+</Grid>
 
             {monthlySeries && (
               <Box sx={{ mt: 4 }}>
