@@ -23,25 +23,23 @@ function normalizePhone(phone) {
   if (!phone) return '';
   let p = phone.trim();
 
-  // If already E.164 with +, just ensure correct pattern later
   if (p.startsWith('+')) return p;
 
-  // 07xxxxxxxx -> +2547xxxxxxxx
   if (p.startsWith('0')) {
+    // 07xxxxxxxx -> +2547xxxxxxxx
     return '+254' + p.slice(1);
   }
 
-  // 2547xxxxxxxx -> +2547xxxxxxxx
   if (p.startsWith('254')) {
+    // 2547xxxxxxxx -> +2547xxxxxxxx
     return '+' + p;
   }
 
-  // 7xxxxxxxx -> +2547xxxxxxxx (KEN-only heuristic)
   if (p[0] === '7' && p.length === 9) {
+    // 7xxxxxxxx -> +2547xxxxxxxx
     return '+254' + p;
   }
 
-  // Fallback: add +
   return p.startsWith('+') ? p : '+' + p;
 }
 
@@ -68,36 +66,41 @@ router.post('/signup', async (req, res) => {
     if (!phone) return res.status(400).json({ error: 'Phone is required' });
 
     phone = normalizePhone(phone);
+    console.log('[CUSTOMER SIGNUP] normalized phone:', phone);
+
     if (!isE164(phone)) {
       return res
         .status(400)
         .json({ error: 'Phone must be in E.164 format, e.g. +2547XXXXXXX' });
     }
 
-    // Ensure a unique email for customers – generate a placeholder
     const placeholderEmail = `${phone.replace(/\W/g, '')}@customer.nebsam.local`;
 
     let user = await User.findOne({ phone });
     if (!user) {
       user = await User.create({
         name: name || phone,
-        email: placeholderEmail,      // satisfies required+unique
-        username: placeholderEmail,   // or some other unique username
-        phone,                        // stored normalized
-        password: await bcrypt.hash(Math.random().toString(36), 10), // temp random
+        email: placeholderEmail,
+        username: placeholderEmail,
+        phone,
+        password: await bcrypt.hash(Math.random().toString(36), 10),
         role: 'customer',
         requiresPasswordChange: true,
         isPhoneVerified: false,
       });
+      console.log('[CUSTOMER SIGNUP] created new customer user with id:', user._id);
     } else if (user.role !== 'customer') {
       return res
         .status(400)
         .json({ error: 'This phone is already used by a staff account' });
+    } else {
+      console.log('[CUSTOMER SIGNUP] reusing existing customer user id:', user._id);
     }
 
     const otp = generateOtp();
     await setOtp(user, otp);
     await user.save();
+    console.log('[CUSTOMER SIGNUP] OTP generated for user', user._id, 'expires at', user.otpExpiresAt);
 
     await sendSms(
       phone,
@@ -126,22 +129,30 @@ router.post('/verify-signup', async (req, res) => {
     }
 
     phone = normalizePhone(phone);
+    console.log('[CUSTOMER VERIFY SIGNUP] normalized phone:', phone);
 
     const user = await User.findOne({ phone, role: 'customer' });
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) {
+      console.error('[CUSTOMER VERIFY SIGNUP] user not found for phone:', phone);
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     if (!user.otpHash || !user.otpExpiresAt) {
+      console.error('[CUSTOMER VERIFY SIGNUP] no otpHash/otpExpiresAt for user', user._id);
       return res
         .status(400)
         .json({ error: 'No OTP found. Please start signup again.' });
     }
     if (user.otpExpiresAt < new Date()) {
+      console.error('[CUSTOMER VERIFY SIGNUP] OTP expired for user', user._id);
       return res
         .status(400)
         .json({ error: 'OTP has expired. Please request a new one.' });
     }
 
     const ok = await bcrypt.compare(otp, user.otpHash);
+    console.log('[CUSTOMER VERIFY SIGNUP] compare result for user', user._id, ':', ok);
+
     if (!ok) {
       user.otpAttempts = (user.otpAttempts || 0) + 1;
       await user.save();
@@ -181,19 +192,26 @@ router.post('/login', async (req, res) => {
     }
 
     phone = normalizePhone(phone);
+    console.log('[CUSTOMER LOGIN] normalized phone:', phone);
 
     const user = await User.findOne({ phone, role: 'customer' });
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) {
+      console.error('[CUSTOMER LOGIN] user not found for phone:', phone);
+      return res.status(404).json({ error: 'User not found' });
+    }
     if (!user.isPhoneVerified) {
       return res.status(400).json({ error: 'Phone is not verified' });
     }
 
     const ok = await bcrypt.compare(password, user.password);
+    console.log('[CUSTOMER LOGIN] password compare for user', user._id, ':', ok);
+
     if (!ok) return res.status(400).json({ error: 'Invalid credentials' });
 
     const otp = generateOtp();
     await setOtp(user, otp);
     await user.save();
+    console.log('[CUSTOMER LOGIN] OTP generated for user', user._id, 'expires at', user.otpExpiresAt);
 
     await sendSms(
       phone,
@@ -220,9 +238,24 @@ router.post('/verify-login', async (req, res) => {
     }
 
     phone = normalizePhone(phone);
+    console.log('[CUSTOMER VERIFY LOGIN] normalized phone:', phone);
 
     const user = await User.findOne({ phone, role: 'customer' });
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) {
+      console.error('[CUSTOMER VERIFY LOGIN] user not found for phone:', phone);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log(
+      '[CUSTOMER VERIFY LOGIN] user',
+      user._id,
+      'has otpHash?',
+      !!user.otpHash,
+      'expires:',
+      user.otpExpiresAt,
+      'attempts:',
+      user.otpAttempts
+    );
 
     if (!user.otpHash || !user.otpExpiresAt) {
       return res
@@ -236,6 +269,8 @@ router.post('/verify-login', async (req, res) => {
     }
 
     const ok = await bcrypt.compare(otp, user.otpHash);
+    console.log('[CUSTOMER VERIFY LOGIN] compare result for user', user._id, ':', ok);
+
     if (!ok) {
       user.otpAttempts = (user.otpAttempts || 0) + 1;
       await user.save();
@@ -247,10 +282,15 @@ router.post('/verify-login', async (req, res) => {
     user.otpAttempts = 0;
     await user.save();
 
-    // Issue JWT and set in cookie. attachUser middleware should read it.
+    const JWT_SECRET = process.env.JWT_SECRET;
+    if (!JWT_SECRET) {
+      console.error('[CUSTOMER VERIFY LOGIN] JWT_SECRET is missing in environment');
+      return res.status(500).json({ error: 'Server configuration error (JWT secret missing)' });
+    }
+
     const token = jwt.sign(
       { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: '7d' }
     );
 
