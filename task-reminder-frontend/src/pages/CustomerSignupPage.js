@@ -46,7 +46,6 @@ const CustomerSignupPage = () => {
     try {
       await api.post('/customer-auth/verify-signup', { phone, otp, password });
       setMsg('Signup complete. Redirecting you to login...');
-      // small delay so user can see the message, then redirect
       setTimeout(() => {
         navigate('/customer-login');
       }, 1500);
@@ -57,11 +56,42 @@ const CustomerSignupPage = () => {
     }
   };
 
+  const goToLogin = () => {
+    navigate('/customer-login');
+  };
+
+  const goToComplaints = () => {
+    navigate('/customer-complaints');
+  };
+
   return (
     <Container maxWidth="sm" sx={{ mt: 6, mb: 6 }}>
       <Paper elevation={3} sx={{ p: 4, borderRadius: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
-          Customer Signup
+        {/* Turn this into a small “customer complaints landing header” */}
+        <Typography variant="h5" sx={{ fontWeight: 700, mb: 1, textAlign: 'center' }}>
+          NEBSAM Customer Complaints Portal
+        </Typography>
+        <Typography variant="body2" sx={{ mb: 3, textAlign: 'center' }} color="text.secondary">
+          Raise a complaint, track resolution, and get updates via SMS.
+        </Typography>
+
+        {/* Top actions: Login + Go to complaint page (for already-logged-in users) */}
+        <Stack
+          direction="row"
+          spacing={2}
+          sx={{ mb: 3, justifyContent: 'center', flexWrap: 'wrap' }}
+        >
+          <Button variant="outlined" onClick={goToLogin}>
+            Already have an account? Login
+          </Button>
+          <Button variant="text" onClick={goToComplaints}>
+            Go to Complaints Page
+          </Button>
+        </Stack>
+
+        {/* Signup flow below */}
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+          New here? Create your customer account
         </Typography>
 
         {step === 1 && (
