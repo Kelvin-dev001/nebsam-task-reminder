@@ -1,36 +1,38 @@
 const express = require('express');
-const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const Complaint = require('../models/Complaint');
 const Task = require('../models/Task');
 const { isAuthenticated, isSuperuser } = require('../middleware/auth');
 const { sendSms } = require('../utils/sms');
 
-const complaintsLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 50,
-  standardHeaders: true,
-  legacyHeaders: false
-});
+// Fully protected: all complaint submissions require authentication
+// and are linked to the logged-in user.
 
-const isPhoneValid = (p) => {
-  if (!p) return false;
-  const trimmed = p.trim();
-  return /^(\+?[1-9]\d{7,14})$/.test(trimmed); // E.164-ish, length 8-15
-};
-
-// Public submit -> POST /complaints
-router.post('/', complaintsLimiter, async (req, res) => {
+// Authenticated submit -> POST /complaints
+router.post('/', isAuthenticated, async (req, res) => {
   try {
     const { customerName, plateOrCompany, mobile, service, issue } = req.body;
+
     if (!plateOrCompany || !mobile || !service || !issue) {
-      return res.status(400).json({ error: 'plateOrCompany, mobile, service, issue are required' });
+      return res.status(400).json({
+        error: 'plateOrCompany, mobile, service and issue are required',
+      });
     }
-    if (!isPhoneValid(mobile)) {
-      return res.status(400).json({ error: 'Invalid phone format (use E.164, e.g., +15551234567)' });
-    }
-    const c = await Complaint.create({ customerName, plateOrCompany, mobile: mobile.trim(), service, issue });
-    await sendSms(mobile.trim(), 'Thank you for your feedback. Your complaint has been received and is being processed. We will update you once it is sorted.');
+
+    const c = await Complaint.create({
+      customerName: customerName || req.user.name || '',
+      plateOrCompany,
+      mobile,
+      service,
+      issue,
+      userId: req.user._id, // link to logged-in customer/user
+    });
+
+    await sendSms(
+      mobile,
+      'Thank you for your feedback. Your complaint has been received and is being processed. We will update you once it is sorted.'
+    );
+
     res.status(201).json(c);
   } catch (err) {
     console.error('Complaint submit error:', err.response?.data || err.message);
@@ -68,7 +70,7 @@ router.post('/:id/assign', isAuthenticated, isSuperuser, async (req, res) => {
       assignedBy: req.user._id,
       deadline,
       status,
-      complaintId: complaint._id
+      complaintId: complaint._id,
     });
 
     complaint.status = 'assigned';

@@ -33,6 +33,7 @@ app.use(cookieParser());
 app.use(attachUser);
 
 // Core routes
+app.use('/customer-auth', require('./routes/customerAuthRoutes'));
 app.use('/auth', require('./routes/authRoutes'));
 app.use('/departments', require('./routes/departmentRoutes'));
 app.use('/tasks', require('./routes/taskRoutes'));

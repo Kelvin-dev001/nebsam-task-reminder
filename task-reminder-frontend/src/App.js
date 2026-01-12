@@ -10,6 +10,8 @@ import AdminLoginPage from './pages/AdminLoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import SuperuserPanel from './pages/SuperuserPanel';
 import SuperuserLoginPage from './pages/SuperuserLoginPage';
+import CustomerSignupPage from './pages/CustomerSignupPage';
+import CustomerLoginPage from './pages/CustomerLoginPage';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -29,33 +31,64 @@ function App() {
         <ToastContainer />
         <Routes>
           <Route path="/" element={<LandingPage />} />
+
+          {/* Staff auth */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin-login" element={<AdminLoginPage />} />
           <Route path="/super-login" element={<SuperuserLoginPage />} />
-          {/* Public complaint page */}
-          <Route path="/customer-complaints" element={<CustomerComplaintPage />} />
-          {/* Keep legacy /complaints if you’ve shared it already */}
-          <Route path="/complaints" element={<CustomerComplaintPage />} />
-          <Route path="/change-password" element={
-            <PrivateRoute allowChangePassword={true}>
-              <ChangePasswordPage />
-            </PrivateRoute>
-          } />
-          <Route path="/user" element={
-            <PrivateRoute>
-              <Dashboard />
-            </PrivateRoute>
-          } />
-          <Route path="/admin" element={
-            <PrivateRoute adminOnly={true}>
-              <AdminPanel />
-            </PrivateRoute>
-          } />
-          <Route path="/super" element={
-            <PrivateRoute superOnly={true}>
-              <SuperuserPanel />
-            </PrivateRoute>
-          } />
+
+          {/* Customer auth */}
+          <Route path="/customer-signup" element={<CustomerSignupPage />} />
+          <Route path="/customer-login" element={<CustomerLoginPage />} />
+
+          {/* Customer complaints must be authenticated now */}
+          <Route
+            path="/customer-complaints"
+            element={
+              <PrivateRoute>
+                <CustomerComplaintPage />
+              </PrivateRoute>
+            }
+          />
+
+          {/* Legacy route can be redirected or reused */}
+          <Route
+            path="/complaints"
+            element={<Navigate to="/customer-complaints" replace />}
+          />
+
+          <Route
+            path="/change-password"
+            element={
+              <PrivateRoute allowChangePassword={true}>
+                <ChangePasswordPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/user"
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <PrivateRoute adminOnly={true}>
+                <AdminPanel />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/super"
+            element={
+              <PrivateRoute superOnly={true}>
+                <SuperuserPanel />
+              </PrivateRoute>
+            }
+          />
         </Routes>
       </Router>
     </AuthProvider>
