@@ -27,6 +27,7 @@ const CustomerSignupPage = () => {
     setLoading(true);
     setErr('');
     setMsg('');
+
     try {
       await api.post('/customer-auth/signup', { phone, name });
       setMsg('OTP sent to your phone.');
@@ -107,11 +108,12 @@ const CustomerSignupPage = () => {
               fullWidth
             />
             <TextField
-              label="Phone (E.164, e.g. +2547XXXXXXX)"
+              label="Phone (start with +2547…)"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
               fullWidth
+              helperText="Preferred format: +2547XXXXXXXX. 07… and 2547… are also accepted."
             />
             <Button type="submit" variant="contained" disabled={loading}>
               {loading ? 'Sending OTP...' : 'Send OTP'}
@@ -126,11 +128,12 @@ const CustomerSignupPage = () => {
             sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
           >
             <TextField
-              label="Phone (E.164)"
+              label="Phone (start with +2547…)"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
               fullWidth
+              helperText="Use the same number you used to sign up."
             />
             <TextField
               label="OTP"
