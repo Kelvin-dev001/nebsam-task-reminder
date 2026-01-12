@@ -32,7 +32,6 @@ const ChartBlock = ({ title, data, bars, height=320 }) => (
   </Paper>
 );
 
-// Helper to map month labels and series into recharts data
 const mapSeries = (months, seriesArray, mapper) =>
   months.map((m, idx) => ({ month: m, ...mapper(seriesArray[idx] || {}) }));
 
@@ -89,7 +88,7 @@ const BossMonthlyOverviewV2 = ({ monthlySeries }) => {
     <Grid container spacing={2} sx={{ mt: 1 }}>
       {/* Speed Governor */}
       <Grid item xs={12}>
-        <Section title="Speed Governor (N/A/S): installs, renewals, offline, checkups" defaultExpanded>
+        <Section title="Speed Governor (Nebsam / Mock / Sinotrack)" defaultExpanded>
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
               <ChartBlock title="Nebsam installs (office vs agent)" data={govN}

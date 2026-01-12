@@ -1,11 +1,52 @@
+const express = require('express');
+const router = express.Router();
+const DailyDepartmentReport = require('../models/DailyDepartmentReport');
+const Department = require('../models/Department');
+const Showroom = require('../models/Showroom');
+const { isAuthenticated, isSuperuser } = require('../middleware/auth');
+
+function normalizeDate(d) { const dt = new Date(d); dt.setUTCHours(0,0,0,0); return dt; }
+function startOfMonth(dt) { return new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), 1, 0, 0, 0, 0)); }
+
+const sumAll = (...paths) => ({ $add: paths.map(p => ({ $ifNull: [p, 0] })) });
+
+// salesExpr updated to exclude removed fields
+const salesExpr = sumAll(
+  "$tracking.tracker1Install", "$tracking.tracker1Renewal",
+  "$tracking.tracker2Install", "$tracking.tracker2Renewal",
+  "$tracking.magneticInstall", "$tracking.magneticRenewal",
+  "$tracking.offlineVehicles",
+
+  "$speedGovernor.nebsam.officeInstall", "$speedGovernor.nebsam.agentInstall",
+  "$speedGovernor.nebsam.officeRenewal", "$speedGovernor.nebsam.agentRenewal",
+  "$speedGovernor.nebsam.offline", "$speedGovernor.nebsam.checkups",
+
+  "$speedGovernor.mockMombasa.officeRenewal", "$speedGovernor.mockMombasa.agentRenewal",
+  "$speedGovernor.mockMombasa.offline", "$speedGovernor.mockMombasa.checkups",
+
+  "$speedGovernor.sinotrack.officeInstall", "$speedGovernor.sinotrack.agentInstall",
+  "$speedGovernor.sinotrack.officeRenewal", "$speedGovernor.sinotrack.agentRenewal",
+  "$speedGovernor.sinotrack.offline", "$speedGovernor.sinotrack.checkups",
+
+  "$radio.officeSale", "$radio.agentSale", "$radio.officeRenewal", // agentRenewal removed
+
+  "$fuel.officeInstall", "$fuel.agentInstall", "$fuel.officeRenewal", "$fuel.offline", "$fuel.checkups", // agentRenewal removed
+  "$vehicleTelematics.officeInstall", "$vehicleTelematics.agentInstall",
+  "$vehicleTelematics.officeRenewal", "$vehicleTelematics.offline", "$vehicleTelematics.checkups", // agentRenewal removed
+
+  "$online.installs.bluetooth", "$online.installs.hybrid", "$online.installs.comprehensive", "$online.installs.hybridAlarm",
+  "$online.renewals.bluetooth", "$online.renewals.hybrid", "$online.renewals.comprehensive", "$online.renewals.hybridAlarm"
+);
+
+// Existing routes: /daily, /trends, /submission-status, /monthly remain…
+
 // NEW: Monthly series (last N months, default 6) for CEO dashboard
 router.get('/monthly-series', isAuthenticated, isSuperuser, async (req, res) => {
-  const months = Math.min(Math.max(parseInt(req.query.months || '6', 10), 1), 24); // cap 24
+  const months = Math.min(Math.max(parseInt(req.query.months || '6', 10), 1), 24);
   const now = new Date(); now.setUTCDate(1); now.setUTCHours(0,0,0,0);
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1, 0, 0, 0, 0));
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0));
 
-  // Build a YYYY-MM label
   const monthKey = { $dateToString: { format: "%Y-%m", date: "$reportDate" } };
 
   const data = await DailyDepartmentReport.aggregate([
@@ -14,26 +55,25 @@ router.get('/monthly-series', isAuthenticated, isSuperuser, async (req, res) => 
     { $project: {
         month: monthKey,
         deptCode: { $arrayElemAt: ["$dept.code", 0] },
-
         // GOV
         nebsamOfficeInst: "$speedGovernor.nebsam.officeInstall",
         nebsamAgentInst: "$speedGovernor.nebsam.agentInstall",
         nebsamOfficeRen: "$speedGovernor.nebsam.officeRenewal",
         nebsamAgentRen: "$speedGovernor.nebsam.agentRenewal",
-        nebsamOffline:   "$speedGovernor.nebsam.offline",
-        nebsamCheck:     "$speedGovernor.nebsam.checkups",
+        nebsamOffline: "$speedGovernor.nebsam.offline",
+        nebsamCheck: "$speedGovernor.nebsam.checkups",
 
         mockOfficeRen: "$speedGovernor.mockMombasa.officeRenewal",
         mockAgentRen: "$speedGovernor.mockMombasa.agentRenewal",
-        mockOffline:   "$speedGovernor.mockMombasa.offline",
-        mockCheck:     "$speedGovernor.mockMombasa.checkups",
+        mockOffline: "$speedGovernor.mockMombasa.offline",
+        mockCheck: "$speedGovernor.mockMombasa.checkups",
 
         sinoOfficeInst: "$speedGovernor.sinotrack.officeInstall",
         sinoAgentInst: "$speedGovernor.sinotrack.agentInstall",
         sinoOfficeRen: "$speedGovernor.sinotrack.officeRenewal",
         sinoAgentRen: "$speedGovernor.sinotrack.agentRenewal",
-        sinoOffline:   "$speedGovernor.sinotrack.offline",
-        sinoCheck:     "$speedGovernor.sinotrack.checkups",
+        sinoOffline: "$speedGovernor.sinotrack.offline",
+        sinoCheck: "$speedGovernor.sinotrack.checkups",
 
         // RADIO
         radioOfficeSale: "$radio.officeSale",
@@ -44,24 +84,24 @@ router.get('/monthly-series', isAuthenticated, isSuperuser, async (req, res) => 
         fuelOfficeInst: "$fuel.officeInstall",
         fuelAgentInst: "$fuel.agentInstall",
         fuelOfficeRen: "$fuel.officeRenewal",
-        fuelOffline:   "$fuel.offline",
-        fuelCheck:     "$fuel.checkups",
+        fuelOffline: "$fuel.offline",
+        fuelCheck: "$fuel.checkups",
 
         // VTEL
         vtelOfficeInst: "$vehicleTelematics.officeInstall",
         vtelAgentInst: "$vehicleTelematics.agentInstall",
         vtelOfficeRen: "$vehicleTelematics.officeRenewal",
-        vtelOffline:   "$vehicleTelematics.offline",
-        vtelCheck:     "$vehicleTelematics.checkups",
+        vtelOffline: "$vehicleTelematics.offline",
+        vtelCheck: "$vehicleTelematics.checkups",
 
         // TRACK
         trackOff: "$tracking.offlineVehicles",
         t1Inst: "$tracking.tracker1Install",
-        t1Ren:  "$tracking.tracker1Renewal",
+        t1Ren: "$tracking.tracker1Renewal",
         t2Inst: "$tracking.tracker2Install",
-        t2Ren:  "$tracking.tracker2Renewal",
+        t2Ren: "$tracking.tracker2Renewal",
         magInst: "$tracking.magneticInstall",
-        magRen:  "$tracking.magneticRenewal",
+        magRen: "$tracking.magneticRenewal",
 
         // ONLINE
         onInstBt: "$online.installs.bluetooth",
@@ -159,12 +199,11 @@ router.get('/monthly-series', isAuthenticated, isSuperuser, async (req, res) => 
     { $sort: { month: 1 } }
   ]);
 
-  // Normalize months list
   const monthLabels = [];
   for (let i = 0; i < months; i++) {
     const d = new Date(start);
     d.setUTCMonth(d.getUTCMonth() + i);
-    monthLabels.push(d.toISOString().slice(0, 7)); // YYYY-MM
+    monthLabels.push(d.toISOString().slice(0, 7));
   }
 
   const byCode = {};
@@ -175,7 +214,7 @@ router.get('/monthly-series', isAuthenticated, isSuperuser, async (req, res) => 
 
   const fill = (codes, pick) => codes.map(code => ({
     code,
-    series: monthLabels.map(m => pick(byCode[code]?.[m]) || pick(null, m, code, true))
+    series: monthLabels.map(m => pick(byCode[code]?.[m]) || pick(null))
   }));
 
   const resp = {
@@ -250,3 +289,5 @@ router.get('/monthly-series', isAuthenticated, isSuperuser, async (req, res) => 
 
   res.json(resp);
 });
+
+module.exports = router;
