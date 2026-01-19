@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useCallback } from 'react';
+import React, { useContext, useEffect, useState, useCallback, useRef } from 'react';
 import api from '../api';
 import TaskCard from '../components/TaskCard';
 import { AuthContext } from '../contexts/AuthContext';
@@ -6,11 +6,14 @@ import {
   AppBar, Toolbar, Typography, Container, Tabs, Tab, Box, Paper, Button,
   IconButton, TextField, MenuItem, Select, InputLabel, FormControl, Grid,
   Divider, useMediaQuery, Snackbar, Alert, Dialog, DialogTitle, DialogContent,
-  DialogActions, Stack, Table, TableBody, TableCell, TableHead, TableRow, Chip
+  DialogActions, Stack, Table, TableBody, TableCell, TableHead, TableRow, Chip,
+  Switch, FormControlLabel
 } from '@mui/material';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import VolumeUpIcon from '@mui/icons-material/VolumeUp';
+import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import LogoutIcon from '@mui/icons-material/Logout';
 import logo from '../assets/logo.png';
 import { useTheme } from '@mui/material/styles';
@@ -21,6 +24,7 @@ import KpiCards from '../components/KpiCards';
 import ShowroomBarChart from '../components/charts/ShowroomBarChart';
 import BossMonthlyOverviewV2 from '../components/BossMonthlyOverviewV2';
 import DeptTrends from '../components/DeptTrends';
+import notifyBeep from '../assets/notify-beep.wav';
 
 const statusStyles = {
   new: { color: 'default', bg: '#f5f5f5' },
@@ -55,7 +59,13 @@ const SuperuserPanel = () => {
 
   // Tasks
   const [tasks, setTasks] = useState([]);
-  const [filters, setFilters] = useState({ user: '', department: '', date: '', status: '', complaintId: '' });
+  const [filtersTasks, setFiltersTasks] = useState({
+    user: '',
+    department: '',
+    date: '',
+    status: '',
+    complaintId: '',
+  });
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignForm, setAssignForm] = useState({
     title: '',
@@ -109,20 +119,44 @@ const SuperuserPanel = () => {
     if (reason !== 'clickaway') setToast((t) => ({ ...t, open: false }));
   };
 
+  // Sound for new complaints
+  const [soundEnabled, setSoundEnabled] = useState(
+    () => localStorage.getItem('super_sound_enabled') !== 'false'
+  );
+  const [lastComplaintCount, setLastComplaintCount] = useState(0);
+  const audioRef = useRef(null);
+
   const fetchMaster = useCallback(async () => {
     try {
       const [deptRes, usersRes, memosRes, showroomsRes, complaintsRes] = await Promise.all([
         api.get('/departments/list'),
         api.get('/admin/users'),
         api.get('/memos'),
-        api.get('/showrooms', { withCredentials: true }).catch(() => ({ data: [] })), // all showrooms
-        api.get('/complaints').catch(() => ({ data: [] })), // tolerate missing
+        api.get('/showrooms', { withCredentials: true }).catch(() => ({ data: [] })),
+        api.get('/complaints').catch(() => ({ data: [] })),
       ]);
       setDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
       setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
       setMemos(Array.isArray(memosRes.data) ? memosRes.data : []);
       setShowrooms(Array.isArray(showroomsRes.data) ? showroomsRes.data : []);
-      setComplaints(Array.isArray(complaintsRes.data) ? complaintsRes.data : []);
+
+      const complaintsArr = Array.isArray(complaintsRes.data) ? complaintsRes.data : [];
+      // Sound alert logic: only if count increased and not first load
+      if (
+        soundEnabled &&
+        lastComplaintCount !== 0 &&
+        complaintsArr.length > lastComplaintCount
+      ) {
+        if (audioRef.current) {
+          audioRef.current
+            .play()
+            .catch(() => {
+              // ignore play errors (e.g., browser autoplay restrictions)
+            });
+        }
+      }
+      setComplaints(complaintsArr);
+      setLastComplaintCount(complaintsArr.length);
     } catch (err) {
       setDepartments([]);
       setUsers([]);
@@ -130,16 +164,16 @@ const SuperuserPanel = () => {
       setShowrooms([]);
       showToast(false, err.response?.data?.error || 'Failed to load data');
     }
-  }, []);
+  }, [lastComplaintCount, soundEnabled]);
 
   const fetchTasks = useCallback(async () => {
     try {
-      const tasksRes = await api.get('/tasks/filter', { params: filters });
+      const tasksRes = await api.get('/tasks/filter', { params: filtersTasks });
       setTasks(Array.isArray(tasksRes.data) ? tasksRes.data : []);
     } catch {
       setTasks([]);
     }
-  }, [filters]);
+  }, [filtersTasks]);
 
   const fetchAnalytics = useCallback(async () => {
     try {
@@ -172,9 +206,17 @@ const SuperuserPanel = () => {
     }
   }, []);
 
-  useEffect(() => { fetchMaster(); }, [fetchMaster]);
-  useEffect(() => { fetchTasks(); }, [fetchTasks]);
-  useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
+  useEffect(() => {
+    fetchMaster();
+  }, [fetchMaster]);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   // Departments CRUD
   const handleAddDept = async (e) => {
@@ -424,28 +466,25 @@ const SuperuserPanel = () => {
     );
   };
 
-  const tabs = isMobile
-    ? [
-        'Users',
-        'Departments',
-        'Showrooms',
-        'Tasks',
-        'Memos',
-        'Analytics',
-        'Complaints',
-      ]
-    : [
-        'Users',
-        'Departments',
-        'Showrooms',
-        'Tasks',
-        'Memos',
-        'Analytics',
-        'Complaints',
-      ];
+  const tabs = [
+    'Users',
+    'Departments',
+    'Showrooms',
+    'Tasks',
+    'Memos',
+    'Analytics',
+    'Complaints',
+  ];
+
+  const handleToggleSound = () => {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    localStorage.setItem('super_sound_enabled', next ? 'true' : 'false');
+  };
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#e3ecfa' }}>
+      <audio ref={audioRef} src={notifyBeep} preload="auto" />
       <AppBar position="static" color="primary" elevation={2}>
         <Toolbar>
           <Box sx={{ mr: 2, width: 40, height: 40 }}>
@@ -458,6 +497,22 @@ const SuperuserPanel = () => {
           <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700 }}>
             NEBSAM Superuser Panel
           </Typography>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={soundEnabled}
+                onChange={handleToggleSound}
+                color="secondary"
+              />
+            }
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                {soundEnabled ? <VolumeUpIcon fontSize="small" /> : <VolumeOffIcon fontSize="small" />}
+                <Typography variant="body2">Sound</Typography>
+              </Box>
+            }
+            sx={{ mr: 2 }}
+          />
           <Typography variant="subtitle1" sx={{ mr: 2 }}>
             {user ? `${user.name} (${user.role})` : 'Not logged in'}
           </Typography>
@@ -1055,10 +1110,10 @@ const SuperuserPanel = () => {
               <FormControl sx={{ minWidth: 140 }}>
                 <InputLabel>User</InputLabel>
                 <Select
-                  value={filters.user}
+                  value={filtersTasks.user}
                   label="User"
                   onChange={(e) =>
-                    setFilters({ ...filters, user: e.target.value })
+                    setFiltersTasks({ ...filtersTasks, user: e.target.value })
                   }
                 >
                   <MenuItem value="">All</MenuItem>
@@ -1073,10 +1128,10 @@ const SuperuserPanel = () => {
               <FormControl sx={{ minWidth: 160 }}>
                 <InputLabel>Department</InputLabel>
                 <Select
-                  value={filters.department}
+                  value={filtersTasks.department}
                   label="Department"
                   onChange={(e) =>
-                    setFilters({ ...filters, department: e.target.value })
+                    setFiltersTasks({ ...filtersTasks, department: e.target.value })
                   }
                 >
                   <MenuItem value="">All</MenuItem>
@@ -1091,10 +1146,10 @@ const SuperuserPanel = () => {
               <FormControl sx={{ minWidth: 140 }}>
                 <InputLabel>Status</InputLabel>
                 <Select
-                  value={filters.status}
+                  value={filtersTasks.status}
                   label="Status"
                   onChange={(e) =>
-                    setFilters({ ...filters, status: e.target.value })
+                    setFiltersTasks({ ...filtersTasks, status: e.target.value })
                   }
                 >
                   <MenuItem value="">All</MenuItem>
@@ -1107,9 +1162,9 @@ const SuperuserPanel = () => {
               <TextField
                 type="date"
                 label="Date"
-                value={filters.date}
+                value={filtersTasks.date}
                 onChange={(e) =>
-                  setFilters({ ...filters, date: e.target.value })
+                  setFiltersTasks({ ...filtersTasks, date: e.target.value })
                 }
                 InputLabelProps={{ shrink: true }}
                 sx={{ minWidth: 160 }}
@@ -1117,11 +1172,11 @@ const SuperuserPanel = () => {
               <FormControl sx={{ minWidth: 180 }}>
                 <InputLabel>Complaint-linked</InputLabel>
                 <Select
-                  value={filters.complaintId}
+                  value={filtersTasks.complaintId}
                   label="Complaint-linked"
                   onChange={(e) =>
-                    setFilters({
-                      ...filters,
+                    setFiltersTasks({
+                      ...filtersTasks,
                       complaintId: e.target.value,
                     })
                   }
@@ -1136,7 +1191,7 @@ const SuperuserPanel = () => {
               </FormControl>
               <Button
                 onClick={() =>
-                  setFilters({
+                  setFiltersTasks({
                     user: '',
                     department: '',
                     date: '',

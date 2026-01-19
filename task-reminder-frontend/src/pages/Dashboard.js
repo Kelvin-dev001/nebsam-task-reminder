@@ -5,17 +5,38 @@ import Notifications from '../components/Notifications';
 import { AuthContext } from '../contexts/AuthContext';
 import ReportForm from '../components/forms/ReportForm';
 import {
-  AppBar, Toolbar, Typography, IconButton, Box, Container, Grid, Paper, Button,
-  TextField, Dialog, DialogTitle, DialogContent, DialogActions, Stack, Snackbar, Alert,
-  Table, TableBody, TableCell, TableHead, TableRow, TableContainer, TablePagination
+  AppBar,
+  Toolbar,
+  Typography,
+  IconButton,
+  Box,
+  Container,
+  Grid,
+  Paper,
+  Button,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Stack,
+  Snackbar,
+  Alert,
+  Tabs,
+  Tab,
+  Pagination,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import logo from '../assets/logo.png';
 import Loader from '../components/Loader';
 import { useNavigate } from 'react-router-dom';
 
+const MEMO_PAGE_SIZE = 5;
+
 const Dashboard = () => {
   const { user, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
+
   const [tasks, setTasks] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [showrooms, setShowrooms] = useState([]);
@@ -26,6 +47,10 @@ const Dashboard = () => {
   const [unseenMemos, setUnseenMemos] = useState([]);
   const [allMemos, setAllMemos] = useState([]);
   const [memoModalOpen, setMemoModalOpen] = useState(false);
+  const [memosExpanded, setMemosExpanded] = useState(
+    () => localStorage.getItem('dashboard_memos_expanded') === 'true'
+  );
+  const [memosPage, setMemosPage] = useState(1); // 1-based for Pagination
 
   // Toast
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
@@ -36,7 +61,8 @@ const Dashboard = () => {
   const [myReportsRowsPerPage, setMyReportsRowsPerPage] = useState(10);
   const [myReportsTotal, setMyReportsTotal] = useState(0);
 
-  const navigate = useNavigate();
+  // Task tab: pending vs done
+  const [taskTab, setTaskTab] = useState('pending'); // 'pending' | 'done'
 
   const openToast = (severity, message) => setToast({ open: true, severity, message });
   const closeToast = () => setToast(prev => ({ ...prev, open: false }));
@@ -45,7 +71,7 @@ const Dashboard = () => {
     const params = filterDate ? { date: filterDate } : {};
     try {
       const res = await api.get('/tasks/my', { params, withCredentials: true });
-      setTasks(res.data);
+      setTasks(res.data || []);
     } catch {
       setTasks([]);
     }
@@ -65,11 +91,13 @@ const Dashboard = () => {
     try {
       const [unseenRes, allRes] = await Promise.all([
         api.get('/memos/unseen', { withCredentials: true }),
-        api.get('/memos', { withCredentials: true })
+        api.get('/memos', { withCredentials: true }),
       ]);
-      setUnseenMemos(unseenRes.data || []);
-      setAllMemos(allRes.data || []);
-      if ((unseenRes.data || []).length) setMemoModalOpen(true);
+      const unseen = unseenRes.data || [];
+      const all = allRes.data || [];
+      setUnseenMemos(unseen);
+      setAllMemos(all);
+      if (unseen.length) setMemoModalOpen(true);
     } catch {
       setUnseenMemos([]);
       setAllMemos([]);
@@ -80,7 +108,7 @@ const Dashboard = () => {
     try {
       const [depRes, shRes] = await Promise.all([
         api.get('/departments/list', { withCredentials: true }),
-        api.get('/showrooms/list', { withCredentials: true })
+        api.get('/showrooms/list', { withCredentials: true }),
       ]);
       setDepartments(depRes.data || []);
       setShowrooms(shRes.data || []);
@@ -94,7 +122,7 @@ const Dashboard = () => {
     try {
       const res = await api.get('/reports/my', {
         params: { page: page + 1, limit: rowsPerPage },
-        withCredentials: true
+        withCredentials: true,
       });
       setMyReports(res.data.items || []);
       setMyReportsTotal(res.data.total || 0);
@@ -112,7 +140,7 @@ const Dashboard = () => {
           fetchDepsAndShowrooms(),
           fetchTasks(),
           fetchMemos(),
-          fetchMyReports(0, myReportsRowsPerPage)
+          fetchMyReports(0, myReportsRowsPerPage),
         ]);
         setMyReportsPage(0);
       } finally {
@@ -180,14 +208,47 @@ const Dashboard = () => {
     navigate('/login');
   };
 
+  // Task filtering: Pending vs Done
+  const visibleTasks = tasks.filter((t) => {
+    if (taskTab === 'pending') {
+      // Only pending & in-progress counted as "active" for staff
+      return t.status === 'pending' || t.status === 'in-progress';
+    }
+    // "Done" tab: only done
+    return t.status === 'done';
+  });
+
+  // Memos pagination / latest memo
+  const latestMemo = allMemos[0] || null;
+  const totalMemoPages = Math.max(1, Math.ceil(allMemos.length / MEMO_PAGE_SIZE));
+  const currentMemosPage = Math.min(memosPage, totalMemoPages);
+  const pagedMemos = allMemos.slice(
+    (currentMemosPage - 1) * MEMO_PAGE_SIZE,
+    currentMemosPage * MEMO_PAGE_SIZE
+  );
+
+  const handleToggleMemosExpanded = () => {
+    const next = !memosExpanded;
+    setMemosExpanded(next);
+    localStorage.setItem('dashboard_memos_expanded', next ? 'true' : 'false');
+  };
+
+  const handleMemosPageChange = (_e, page) => {
+    setMemosPage(page);
+  };
+
   if (loading) return <Loader />;
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#e3ecfa" }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#e3ecfa' }}>
       <AppBar position="static" color="primary" elevation={2}>
         <Toolbar>
           <Box sx={{ mr: 2, width: 40, height: 40 }}>
-            <img src={logo} alt="Company Logo" style={{ width: 40, height: 40, borderRadius: 8 }} />
+            <img
+              src={logo}
+              alt="Company Logo"
+              style={{ width: 40, height: 40, borderRadius: 8 }}
+            />
           </Box>
           <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700 }}>
             Nebsam Task Reminder
@@ -201,8 +262,25 @@ const Dashboard = () => {
         </Toolbar>
       </AppBar>
 
-      <Box sx={{ mt: 3, mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'row' }}>
-        <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main', textAlign: 'center', mr: 1 }}>
+      <Box
+        sx={{
+          mt: 3,
+          mb: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'row',
+        }}
+      >
+        <Typography
+          variant="h5"
+          sx={{
+            fontWeight: 600,
+            color: 'primary.main',
+            textAlign: 'center',
+            mr: 1,
+          }}
+        >
           Hi Cousins <span role="img" aria-label="waving hand">👋</span>
         </Typography>
       </Box>
@@ -232,74 +310,172 @@ const Dashboard = () => {
               You have not submitted any reports yet.
             </Typography>
           ) : (
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Department</TableCell>
-                    <TableCell>Showroom</TableCell>
-                    <TableCell>Notes</TableCell>
-                    <TableCell>Submitted At</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {myReports.map(r => (
-                    <TableRow key={r.id}>
-                      <TableCell>
+            <Box sx={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: 8, textAlign: 'left' }}>Date</th>
+                    <th style={{ padding: 8, textAlign: 'left' }}>Department</th>
+                    <th style={{ padding: 8, textAlign: 'left' }}>Showroom</th>
+                    <th style={{ padding: 8, textAlign: 'left' }}>Notes</th>
+                    <th style={{ padding: 8, textAlign: 'left' }}>Submitted At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myReports.map((r) => (
+                    <tr key={r.id}>
+                      <td style={{ padding: 8 }}>
                         {r.reportDate ? new Date(r.reportDate).toLocaleDateString() : ''}
-                      </TableCell>
-                      <TableCell>
+                      </td>
+                      <td style={{ padding: 8 }}>
                         {r.department?.name || r.department?.code || ''}
-                      </TableCell>
-                      <TableCell>
+                      </td>
+                      <td style={{ padding: 8 }}>
                         {r.showroom?.name || '—'}
-                      </TableCell>
-                      <TableCell>
+                      </td>
+                      <td style={{ padding: 8 }}>
                         {r.notes || '—'}
-                      </TableCell>
-                      <TableCell>
+                      </td>
+                      <td style={{ padding: 8 }}>
                         {r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   ))}
-                </TableBody>
-              </Table>
-              <TablePagination
-                component="div"
-                count={myReportsTotal}
-                page={myReportsPage}
-                onPageChange={handleMyReportsPageChange}
-                rowsPerPage={myReportsRowsPerPage}
-                onRowsPerPageChange={handleMyReportsRowsPerPageChange}
-                rowsPerPageOptions={[5, 10, 20]}
-              />
-            </TableContainer>
-          )}
-        </Paper>
-
-        {/* Memo list */}
-        <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>Memos</Typography>
-          {allMemos.length === 0 && (
-            <Typography variant="body2" color="text.secondary">No memos yet.</Typography>
-          )}
-          <Stack spacing={1.5}>
-            {allMemos.map(m => (
-              <Paper key={m._id} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{m.title}</Typography>
-                <Typography variant="body2" sx={{ mt: 0.5, mb: 0.5 }}>{m.message}</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  By: {m.createdBy?.name || m.createdBy?.email} — {new Date(m.createdAt).toLocaleString()}
+                </tbody>
+              </table>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                <TextField
+                  select
+                  SelectProps={{ native: true }}
+                  size="small"
+                  label="Rows"
+                  value={myReportsRowsPerPage}
+                  onChange={handleMyReportsRowsPerPageChange}
+                  sx={{ width: 90, mr: 2 }}
+                >
+                  {[5, 10, 20].map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </TextField>
+                <Typography variant="body2" sx={{ alignSelf: 'center', mr: 1 }}>
+                  Page {myReportsPage + 1} of{' '}
+                  {Math.max(1, Math.ceil(myReportsTotal / myReportsRowsPerPage))}
                 </Typography>
-              </Paper>
-            ))}
-          </Stack>
+                <Button
+                  size="small"
+                  disabled={myReportsPage === 0}
+                  onClick={() => handleMyReportsPageChange(null, myReportsPage - 1)}
+                >
+                  Prev
+                </Button>
+                <Button
+                  size="small"
+                  disabled={(myReportsPage + 1) * myReportsRowsPerPage >= myReportsTotal}
+                  onClick={() => handleMyReportsPageChange(null, myReportsPage + 1)}
+                >
+                  Next
+                </Button>
+              </Box>
+            </Box>
+          )}
         </Paper>
 
-        {/* Filter */}
-        <Paper elevation={1} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        {/* Memos */}
+        <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 3 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              mb: 1,
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Memos
+            </Typography>
+            <Button
+              size="small"
+              onClick={handleToggleMemosExpanded}
+            >
+              {memosExpanded ? 'Hide All' : 'View All'}
+            </Button>
+          </Box>
+
+          {!latestMemo && (
+            <Typography variant="body2" color="text.secondary">
+              No memos yet.
+            </Typography>
+          )}
+
+          {latestMemo && (
+            <Paper
+              variant="outlined"
+              sx={{ p: 1.5, borderRadius: 2, mb: memosExpanded ? 2 : 0 }}
+            >
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 700, mb: 0.5 }}
+              >
+                Latest: {latestMemo.title}
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 0.5 }}>
+                {latestMemo.message}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                By: {latestMemo.createdBy?.name || latestMemo.createdBy?.email} —{' '}
+                {new Date(latestMemo.createdAt).toLocaleString()}
+              </Typography>
+            </Paper>
+          )}
+
+          {memosExpanded && allMemos.length > 1 && (
+            <>
+              <Stack spacing={1.5} sx={{ mt: 1 }}>
+                {pagedMemos.map((m) => (
+                  <Paper
+                    key={m._id}
+                    variant="outlined"
+                    sx={{ p: 1.5, borderRadius: 2 }}
+                  >
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ fontWeight: 600 }}
+                    >
+                      {m.title}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ mt: 0.5, mb: 0.5 }}
+                    >
+                      {m.message}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      By: {m.createdBy?.name || m.createdBy?.email} —{' '}
+                      {new Date(m.createdAt).toLocaleString()}
+                    </Typography>
+                  </Paper>
+                ))}
+              </Stack>
+              {totalMemoPages > 1 && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                  <Pagination
+                    count={totalMemoPages}
+                    page={currentMemosPage}
+                    onChange={handleMemosPageChange}
+                    size="small"
+                    color="primary"
+                  />
+                </Box>
+              )}
+            </>
+          )}
+        </Paper>
+
+        {/* Filter tasks by date */}
+        <Paper elevation={1} sx={{ p: 2, mb: 2, borderRadius: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
             <Typography variant="body1" sx={{ fontWeight: 500 }}>
               Filter tasks by Date:
             </Typography>
@@ -310,49 +486,84 @@ const Dashboard = () => {
               InputLabelProps={{ shrink: true }}
               sx={{ maxWidth: 200 }}
             />
-            <Button onClick={() => setFilterDate('')} color="secondary" variant="outlined" size="small">
+            <Button
+              onClick={() => setFilterDate('')}
+              color="secondary"
+              variant="outlined"
+              size="small"
+            >
               Clear
             </Button>
           </Box>
         </Paper>
 
-        {/* Task List (receive/mark done only) */}
-        <Grid container spacing={3}>
-          {tasks.map(task => (
-            <Grid item xs={12} sm={6} md={4} key={task._id}>
-              <TaskCard task={task} onUpdate={handleUpdate} />
-            </Grid>
-          ))}
-          {tasks.length === 0 && (
-            <Grid item xs={12}>
-              <Paper sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
-                No tasks found for the selected date.
-              </Paper>
-            </Grid>
-          )}
-        </Grid>
+        {/* Task tabs + list */}
+        <Paper elevation={2} sx={{ p: 2.5, borderRadius: 3 }}>
+          <Tabs
+            value={taskTab}
+            onChange={(_, v) => setTaskTab(v)}
+            textColor="primary"
+            indicatorColor="primary"
+            sx={{ mb: 2 }}
+          >
+            <Tab value="pending" label="Pending / In Progress" />
+            <Tab value="done" label="Done" />
+          </Tabs>
+
+          <Grid container spacing={3}>
+            {visibleTasks.map(task => (
+              <Grid item xs={12} sm={6} md={4} key={task._id}>
+                <TaskCard task={task} onUpdate={handleUpdate} />
+              </Grid>
+            ))}
+            {visibleTasks.length === 0 && (
+              <Grid item xs={12}>
+                <Paper sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
+                  No {taskTab === 'pending' ? 'pending' : 'done'} tasks found for the
+                  selected date.
+                </Paper>
+              </Grid>
+            )}
+          </Grid>
+        </Paper>
       </Container>
 
       {/* Memo modal for unseen memos */}
-      <Dialog open={memoModalOpen && unseenMemos.length > 0} onClose={() => setMemoModalOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={memoModalOpen && unseenMemos.length > 0}
+        onClose={() => setMemoModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>New Memo</DialogTitle>
         <DialogContent dividers>
           {unseenMemos.map(m => (
             <Box key={m._id} sx={{ mb: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>{m.title}</Typography>
-              <Typography variant="body2" sx={{ mt: 1, mb: 1 }}>{m.message}</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {m.title}
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1, mb: 1 }}>
+                {m.message}
+              </Typography>
               <Typography variant="caption" color="text.secondary">
-                By: {m.createdBy?.name || m.createdBy?.email} — {new Date(m.createdAt).toLocaleString()}
+                By: {m.createdBy?.name || m.createdBy?.email} —{' '}
+                {new Date(m.createdAt).toLocaleString()}
               </Typography>
               <Box sx={{ mt: 1 }}>
-                <Button size="small" variant="outlined" onClick={() => markMemoSeen(m._id)}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => markMemoSeen(m._id)}
+                >
                   Mark as read
                 </Button>
               </Box>
             </Box>
           ))}
           {unseenMemos.length === 0 && (
-            <Typography variant="body2" color="text.secondary">No new memos.</Typography>
+            <Typography variant="body2" color="text.secondary">
+              No new memos.
+            </Typography>
           )}
         </DialogContent>
         <DialogActions>
