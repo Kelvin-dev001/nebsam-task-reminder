@@ -14,6 +14,8 @@ const defaultMetricsByCode = {
     tracker2Renewal: 0,
     magneticInstall: 0,
     magneticRenewal: 0,
+    expired: 0,
+    inactive: 0,
   },
   GOV: {
     nebsam: { officeInstall: 0, agentInstall: 0, officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 },
@@ -61,7 +63,6 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
   const ensureMetrics = () => {
     if (!deptCode) return {};
     if (metrics && Object.keys(metrics).length) return metrics;
-    // deep clone default to avoid shared references
     return JSON.parse(JSON.stringify(defaultMetricsByCode[deptCode] || {}));
   };
 
@@ -192,6 +193,8 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
               'tracker2Renewal',
               'magneticInstall',
               'magneticRenewal',
+              'expired',
+              'inactive',
             ].map((f) => (
               <Grid item xs={6} sm={4} key={f}>
                 <TextField

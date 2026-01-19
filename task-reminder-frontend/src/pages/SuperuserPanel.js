@@ -40,6 +40,10 @@ const SuperuserPanel = () => {
   const [departments, setDepartments] = useState([]);
   const [showrooms, setShowrooms] = useState([]);
 
+  // Showroom management
+  const [showroomForm, setShowroomForm] = useState({ name: '', code: '', isActive: true });
+  const [editingShowroom, setEditingShowroom] = useState(null);
+
   // Users
   const [users, setUsers] = useState([]);
   const [userForm, setUserForm] = useState({ name: '', email: '', phone: '', role: 'user' });
@@ -111,7 +115,7 @@ const SuperuserPanel = () => {
         api.get('/departments/list'),
         api.get('/admin/users'),
         api.get('/memos'),
-        api.get('/showrooms/list').catch(() => ({ data: [] })), // tolerate missing
+        api.get('/showrooms', { withCredentials: true }).catch(() => ({ data: [] })), // all showrooms
         api.get('/complaints').catch(() => ({ data: [] })), // tolerate missing
       ]);
       setDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
@@ -217,6 +221,40 @@ const SuperuserPanel = () => {
         }
       },
       'Delete this department?'
+    );
+  };
+
+  // Showrooms CRUD
+  const handleCreateOrUpdateShowroom = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingShowroom) {
+        await api.put(`/showrooms/${editingShowroom._id}`, showroomForm, { withCredentials: true });
+        showToast(true, 'Showroom updated');
+      } else {
+        await api.post('/showrooms', showroomForm, { withCredentials: true });
+        showToast(true, 'Showroom created');
+      }
+      setShowroomForm({ name: '', code: '', isActive: true });
+      setEditingShowroom(null);
+      fetchMaster();
+    } catch (err) {
+      showToast(false, err.response?.data?.error || 'Showroom create/update failed');
+    }
+  };
+
+  const handleDeleteShowroom = async (id) => {
+    await confirmAnd(
+      async () => {
+        try {
+          await api.delete(`/showrooms/${id}`, { withCredentials: true });
+          fetchMaster();
+          showToast(true, 'Showroom deactivated');
+        } catch (err) {
+          showToast(false, err.response?.data?.error || 'Showroom delete failed');
+        }
+      },
+      'Deactivate this showroom?'
     );
   };
 
@@ -386,6 +424,26 @@ const SuperuserPanel = () => {
     );
   };
 
+  const tabs = isMobile
+    ? [
+        'Users',
+        'Departments',
+        'Showrooms',
+        'Tasks',
+        'Memos',
+        'Analytics',
+        'Complaints',
+      ]
+    : [
+        'Users',
+        'Departments',
+        'Showrooms',
+        'Tasks',
+        'Memos',
+        'Analytics',
+        'Complaints',
+      ];
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#e3ecfa' }}>
       <AppBar position="static" color="primary" elevation={2}>
@@ -425,12 +483,11 @@ const SuperuserPanel = () => {
                 label="Section"
                 onChange={(e) => setTab(Number(e.target.value))}
               >
-                <MenuItem value={0}>Users</MenuItem>
-                <MenuItem value={1}>Departments</MenuItem>
-                <MenuItem value={2}>Tasks</MenuItem>
-                <MenuItem value={3}>Memos</MenuItem>
-                <MenuItem value={4}>Analytics</MenuItem>
-                <MenuItem value={5}>Complaints</MenuItem>
+                {tabs.map((label, index) => (
+                  <MenuItem key={label} value={index}>
+                    {label}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Box>
@@ -441,16 +498,13 @@ const SuperuserPanel = () => {
             variant="fullWidth"
             sx={{ mt: 2 }}
           >
-            <Tab label="Users" />
-            <Tab label="Departments" />
-            <Tab label="Tasks" />
-            <Tab label="Memos" />
-            <Tab label="Analytics" />
-            <Tab label="Complaints" />
+            {tabs.map((label) => (
+              <Tab key={label} label={label} />
+            ))}
           </Tabs>
         )}
 
-        {/* Users Tab */}
+        {/* Users Tab (0) */}
         {tab === 0 && (
           <Paper
             elevation={3}
@@ -604,7 +658,7 @@ const SuperuserPanel = () => {
           </Paper>
         )}
 
-        {/* Departments Tab */}
+        {/* Departments Tab (1) */}
         {tab === 1 && (
           <Paper
             elevation={3}
@@ -699,8 +753,141 @@ const SuperuserPanel = () => {
           </Paper>
         )}
 
-        {/* Tasks Tab */}
+        {/* Showrooms Tab (2) */}
         {tab === 2 && (
+          <Paper
+            elevation={3}
+            sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+              Manage Showrooms
+            </Typography>
+            <Box
+              component="form"
+              onSubmit={handleCreateOrUpdateShowroom}
+              sx={{
+                display: 'flex',
+                gap: 2,
+                flexDirection: isMobile ? 'column' : 'row',
+                flexWrap: 'wrap',
+                mb: 3,
+              }}
+            >
+              <TextField
+                label="Showroom Name"
+                value={showroomForm.name}
+                onChange={(e) =>
+                  setShowroomForm({ ...showroomForm, name: e.target.value })
+                }
+                required
+                fullWidth
+              />
+              <TextField
+                label="Code (optional)"
+                value={showroomForm.code}
+                onChange={(e) =>
+                  setShowroomForm({ ...showroomForm, code: e.target.value })
+                }
+                helperText="If empty, code will be generated from name."
+                fullWidth
+              />
+              <FormControl sx={{ minWidth: 160 }}>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={showroomForm.isActive ? 'active' : 'inactive'}
+                  label="Status"
+                  onChange={(e) =>
+                    setShowroomForm({
+                      ...showroomForm,
+                      isActive: e.target.value === 'active',
+                    })
+                  }
+                >
+                  <MenuItem value="active">Active</MenuItem>
+                  <MenuItem value="inactive">Inactive</MenuItem>
+                </Select>
+              </FormControl>
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={<AddCircleIcon />}
+              >
+                {editingShowroom ? 'Update Showroom' : 'Create Showroom'}
+              </Button>
+              {editingShowroom && (
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => {
+                    setEditingShowroom(null);
+                    setShowroomForm({ name: '', code: '', isActive: true });
+                  }}
+                >
+                  Cancel Edit
+                </Button>
+              )}
+            </Box>
+
+            <Grid container spacing={2}>
+              {showrooms.map((s) => (
+                <Grid item xs={12} sm={6} md={4} key={s._id}>
+                  <Paper
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Box>
+                      <Typography fontWeight={600}>{s.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Code: {s.code}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color={s.isActive ? 'success.main' : 'error.main'}
+                        sx={{ display: 'block' }}
+                      >
+                        {s.isActive ? 'Active' : 'Inactive'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <IconButton
+                        color="primary"
+                        onClick={() => {
+                          setEditingShowroom(s);
+                          setShowroomForm({
+                            name: s.name,
+                            code: s.code,
+                            isActive: s.isActive,
+                          });
+                        }}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        color="error"
+                        onClick={() => handleDeleteShowroom(s._id)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  </Paper>
+                </Grid>
+              ))}
+              {showrooms.length === 0 && (
+                <Grid item xs={12}>
+                  <Typography>No showrooms found.</Typography>
+                </Grid>
+              )}
+            </Grid>
+          </Paper>
+        )}
+
+        {/* Tasks Tab (3) */}
+        {tab === 3 && (
           <Paper
             elevation={3}
             sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}
@@ -998,8 +1185,8 @@ const SuperuserPanel = () => {
           </Paper>
         )}
 
-        {/* Memos Tab */}
-        {tab === 3 && (
+        {/* Memos Tab (4) */}
+        {tab === 4 && (
           <Paper
             elevation={3}
             sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}
@@ -1067,8 +1254,8 @@ const SuperuserPanel = () => {
           </Paper>
         )}
 
-        {/* Analytics Tab */}
-        {tab === 4 && (
+        {/* Analytics Tab (5) */}
+        {tab === 5 && (
           <Paper
             elevation={3}
             sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}
@@ -1123,8 +1310,8 @@ const SuperuserPanel = () => {
           </Paper>
         )}
 
-        {/* Complaints Tab */}
-        {tab === 5 && (
+        {/* Complaints Tab (6) */}
+        {tab === 6 && (
           <Paper
             elevation={3}
             sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}
