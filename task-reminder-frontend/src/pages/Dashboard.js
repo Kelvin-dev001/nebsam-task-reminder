@@ -12,7 +12,6 @@ import {
 import LogoutIcon from '@mui/icons-material/Logout';
 import logo from '../assets/logo.png';
 import Loader from '../components/Loader';
-import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
@@ -37,8 +36,6 @@ const Dashboard = () => {
   const [myReportsRowsPerPage, setMyReportsRowsPerPage] = useState(10);
   const [myReportsTotal, setMyReportsTotal] = useState(0);
 
-  const theme = useTheme();
-  const isMobile = theme.breakpoints.down('sm'); // you don't use isMobile as boolean here, but it's fine
   const navigate = useNavigate();
 
   const openToast = (severity, message) => setToast({ open: true, severity, message });

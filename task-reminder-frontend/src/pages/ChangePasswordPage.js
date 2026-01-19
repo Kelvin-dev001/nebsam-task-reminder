@@ -5,7 +5,7 @@ import api from '../api';
 import { AuthContext } from '../contexts/AuthContext';
 
 const ChangePasswordPage = () => {
-  const { user } = useContext(AuthContext);
+  useContext(AuthContext); // kept context hook to ensure auth state if needed; user not used
   const navigate = useNavigate();
   const [form, setForm] = useState({ oldPassword: '', newPassword: '', confirm: '' });
   const [loading, setLoading] = useState(false);
@@ -39,7 +39,7 @@ const ChangePasswordPage = () => {
       localStorage.setItem('user', JSON.stringify({ ...storedUser, requiresPasswordChange: false }));
 
       setSnack({ open: true, message: 'Password updated. Redirecting to login...', severity: 'success' });
-      setTimeout(() => navigate('/login'), 800); // redirect to login after success
+      setTimeout(() => navigate('/login'), 800);
     } catch (err) {
       setSnack({
         open: true,

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useState, useCallback } from 'react';
 import api from '../api';
 import TaskCard from '../components/TaskCard';
 import { AuthContext } from '../contexts/AuthContext';
@@ -18,8 +18,6 @@ import { useNavigate } from 'react-router-dom';
 
 import Filters from '../components/Filters';
 import KpiCards from '../components/KpiCards';
-import TrendLineChart from '../components/charts/TrendLineChart';
-import DeptBarChart from '../components/charts/DeptBarChart';
 import ShowroomBarChart from '../components/charts/ShowroomBarChart';
 import BossMonthlyOverviewV2 from '../components/BossMonthlyOverviewV2';
 import DeptTrends from '../components/DeptTrends';
@@ -97,9 +95,7 @@ const SuperuserPanel = () => {
     lastMonthSales: 0,
     pctVsLastMonth: null,
   });
-  const [byDept, setByDept] = useState([]);
   const [trackingShowroomRollup, setTrackingShowroomRollup] = useState([]);
-  const [submissionStatus, setSubmissionStatus] = useState({});
   const [monthlySeries, setMonthlySeries] = useState(null);
 
   // Toast
@@ -109,7 +105,7 @@ const SuperuserPanel = () => {
     if (reason !== 'clickaway') setToast((t) => ({ ...t, open: false }));
   };
 
-  const fetchMaster = async () => {
+  const fetchMaster = useCallback(async () => {
     try {
       const [deptRes, usersRes, memosRes, showroomsRes, complaintsRes] = await Promise.all([
         api.get('/departments/list'),
@@ -130,31 +126,23 @@ const SuperuserPanel = () => {
       setShowrooms([]);
       showToast(false, err.response?.data?.error || 'Failed to load data');
     }
-  };
+  }, []);
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
       const tasksRes = await api.get('/tasks/filter', { params: filters });
       setTasks(Array.isArray(tasksRes.data) ? tasksRes.data : []);
     } catch {
       setTasks([]);
     }
-  };
+  }, [filters]);
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       const params = { ...analyticsFilters };
-      const [trRes, dailyRes, subRes] = await Promise.all([
+      const [trRes, dailyRes] = await Promise.all([
         api.get('/analytics/trends', { params }),
         api.get('/analytics/daily', { params }),
-        api.get('/analytics/submission-status', {
-          params: {
-            date:
-              analyticsFilters.endDate ||
-              analyticsFilters.startDate ||
-              new Date().toISOString().slice(0, 10),
-          },
-        }),
       ]);
 
       setTrends({
@@ -164,15 +152,13 @@ const SuperuserPanel = () => {
         pctVsLastMonth: trRes.data?.pctVsLastMonth ?? null,
       });
 
-      setByDept(dailyRes.data?.byDept || []);
       setTrackingShowroomRollup(dailyRes.data?.trackingShowroomRollup || []);
-      setSubmissionStatus(subRes.data || {});
     } catch (err) {
       showToast(false, err.response?.data?.error || 'Failed to load analytics');
     }
-  };
+  }, [analyticsFilters]);
 
-  const fetchMonthly = async () => {
+  const fetchMonthly = useCallback(async () => {
     try {
       const res = await api.get('/analytics/monthly-series', { params: { months: 6 } });
       setMonthlySeries(res.data);
@@ -180,18 +166,11 @@ const SuperuserPanel = () => {
     } catch (err) {
       showToast(false, err.response?.data?.error || 'Failed to load monthly overview');
     }
-  };
-
-  useEffect(() => {
-    fetchMaster();
   }, []);
-  useEffect(() => {
-    fetchTasks();
-  }, [filters]);
-  useEffect(() => {
-    fetchAnalytics();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analyticsFilters.departmentId, analyticsFilters.showroomId]);
+
+  useEffect(() => { fetchMaster(); }, [fetchMaster]);
+  useEffect(() => { fetchTasks(); }, [fetchTasks]);
+  useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
 
   // Departments CRUD
   const handleAddDept = async (e) => {
@@ -382,11 +361,6 @@ const SuperuserPanel = () => {
       showToast(false, err.response?.data?.error || 'Failed to assign complaint');
     }
   };
-
-  const deptLookup = useMemo(
-    () => Object.fromEntries(departments.map((d) => [d._id, d.name])),
-    [departments]
-  );
 
   const handleLogout = () => {
     logout();
@@ -1118,14 +1092,14 @@ const SuperuserPanel = () => {
             </Stack>
             <KpiCards data={trends} />
 
-<Grid container spacing={2} sx={{ mt: 1, mb: 2 }}>
-  <Grid item xs={12}>
-    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
-      Tracking Showroom Comparison (This Period)
-    </Typography>
-    <ShowroomBarChart data={trackingShowroomRollup} />
-  </Grid>
-</Grid>
+            <Grid container spacing={2} sx={{ mt: 1, mb: 2 }}>
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+                  Tracking Showroom Comparison (This Period)
+                </Typography>
+                <ShowroomBarChart data={trackingShowroomRollup} />
+              </Grid>
+            </Grid>
 
             {monthlySeries && (
               <Box sx={{ mt: 4 }}>

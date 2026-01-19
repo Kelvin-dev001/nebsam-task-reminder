@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import axios from 'axios';
 import TaskCard from '../components/TaskCard';
 import { AuthContext } from '../contexts/AuthContext';
@@ -53,8 +53,7 @@ const AdminPanel = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  // Fetch all admin data
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [deptRes, usersRes, tasksRes] = await Promise.all([
         axios.get(`${process.env.REACT_APP_API_URL}/departments/list`),
@@ -70,9 +69,9 @@ const AdminPanel = () => {
       setTasks([]);
       console.error("AdminPanel fetchData error:", err);
     }
-  };
+  }, [filters]);
 
-  useEffect(() => { fetchData(); }, [filters]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   // Department creation
   const handleAddDept = async (e) => {
