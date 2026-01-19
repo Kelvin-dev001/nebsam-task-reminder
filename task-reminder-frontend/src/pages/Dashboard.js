@@ -192,7 +192,8 @@ const Dashboard = () => {
   useEffect(() => {
     const interval = setInterval(fetchUnseenMemos, 60000);
     return () => clearInterval(interval);
-  }, [soundEnabled, lastUnseenCount]); // include deps to avoid stale closures
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const markMemoSeen = async (id) => {
     try {
