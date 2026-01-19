@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import api from '../api';
 import TaskCard from '../components/TaskCard';
 import Notifications from '../components/Notifications';
@@ -25,11 +25,16 @@ import {
   Tabs,
   Tab,
   Pagination,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
+import VolumeUpIcon from '@mui/icons-material/VolumeUp';
+import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import logo from '../assets/logo.png';
 import Loader from '../components/Loader';
 import { useNavigate } from 'react-router-dom';
+import notifyBeep from '../assets/notify-beep.wav';
 
 const MEMO_PAGE_SIZE = 5;
 
@@ -57,21 +62,41 @@ const Dashboard = () => {
 
   // My report logs
   const [myReports, setMyReports] = useState([]);
-  const [myReportsPage, setMyReportsPage] = useState(0); // zero-based for TablePagination
+  const [myReportsPage, setMyReportsPage] = useState(0); // zero-based
   const [myReportsRowsPerPage, setMyReportsRowsPerPage] = useState(10);
   const [myReportsTotal, setMyReportsTotal] = useState(0);
 
   // Task tab: pending vs done
   const [taskTab, setTaskTab] = useState('pending'); // 'pending' | 'done'
 
+  // Sound notifications
+  const [soundEnabled, setSoundEnabled] = useState(
+    () => localStorage.getItem('dashboard_sound_enabled') !== 'false'
+  );
+  const [lastUnseenCount, setLastUnseenCount] = useState(0);
+  const [lastTaskCount, setLastTaskCount] = useState(0);
+  const audioRef = useRef(null);
+
   const openToast = (severity, message) => setToast({ open: true, severity, message });
   const closeToast = () => setToast(prev => ({ ...prev, open: false }));
+
+  const handleToggleSound = () => {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    localStorage.setItem('dashboard_sound_enabled', next ? 'true' : 'false');
+  };
 
   const fetchTasks = async () => {
     const params = filterDate ? { date: filterDate } : {};
     try {
       const res = await api.get('/tasks/my', { params, withCredentials: true });
-      setTasks(res.data || []);
+      const arr = res.data || [];
+      // Sound: new tasks appeared
+      if (soundEnabled && lastTaskCount !== 0 && arr.length > lastTaskCount) {
+        audioRef.current?.play().catch(() => {});
+      }
+      setTasks(arr);
+      setLastTaskCount(arr.length);
     } catch {
       setTasks([]);
     }
@@ -80,8 +105,14 @@ const Dashboard = () => {
   const fetchUnseenMemos = async () => {
     try {
       const res = await api.get('/memos/unseen', { withCredentials: true });
-      setUnseenMemos(res.data || []);
-      if ((res.data || []).length) setMemoModalOpen(true);
+      const unseen = res.data || [];
+      // Sound: new unseen memos
+      if (soundEnabled && lastUnseenCount !== 0 && unseen.length > lastUnseenCount) {
+        audioRef.current?.play().catch(() => {});
+      }
+      setUnseenMemos(unseen);
+      setLastUnseenCount(unseen.length);
+      if (unseen.length) setMemoModalOpen(true);
     } catch {
       // ignore
     }
@@ -95,7 +126,13 @@ const Dashboard = () => {
       ]);
       const unseen = unseenRes.data || [];
       const all = allRes.data || [];
+
+      if (soundEnabled && lastUnseenCount !== 0 && unseen.length > lastUnseenCount) {
+        audioRef.current?.play().catch(() => {});
+      }
+
       setUnseenMemos(unseen);
+      setLastUnseenCount(unseen.length);
       setAllMemos(all);
       if (unseen.length) setMemoModalOpen(true);
     } catch {
@@ -155,7 +192,7 @@ const Dashboard = () => {
   useEffect(() => {
     const interval = setInterval(fetchUnseenMemos, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [soundEnabled, lastUnseenCount]); // include deps to avoid stale closures
 
   const markMemoSeen = async (id) => {
     try {
@@ -208,10 +245,10 @@ const Dashboard = () => {
     navigate('/login');
   };
 
-  // Task filtering: Pending vs Done
+  // Task filtering: Pending vs Done (for selected date)
   const visibleTasks = tasks.filter((t) => {
     if (taskTab === 'pending') {
-      // Only pending & in-progress counted as "active" for staff
+      // Only pending & in-progress counted as "active"
       return t.status === 'pending' || t.status === 'in-progress';
     }
     // "Done" tab: only done
@@ -241,6 +278,7 @@ const Dashboard = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#e3ecfa' }}>
+      <audio ref={audioRef} src={notifyBeep} preload="auto" />
       <AppBar position="static" color="primary" elevation={2}>
         <Toolbar>
           <Box sx={{ mr: 2, width: 40, height: 40 }}>
@@ -253,6 +291,28 @@ const Dashboard = () => {
           <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700 }}>
             Nebsam Task Reminder
           </Typography>
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={soundEnabled}
+                onChange={handleToggleSound}
+                color="secondary"
+              />
+            }
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                {soundEnabled ? (
+                  <VolumeUpIcon fontSize="small" />
+                ) : (
+                  <VolumeOffIcon fontSize="small" />
+                )}
+                <Typography variant="body2">Sound</Typography>
+              </Box>
+            }
+            sx={{ mr: 2 }}
+          />
+
           <Typography variant="subtitle1" sx={{ mr: 2 }}>
             {user && user.name}
           </Typography>
@@ -395,10 +455,7 @@ const Dashboard = () => {
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
               Memos
             </Typography>
-            <Button
-              size="small"
-              onClick={handleToggleMemosExpanded}
-            >
+            <Button size="small" onClick={handleToggleMemosExpanded}>
               {memosExpanded ? 'Hide All' : 'View All'}
             </Button>
           </Box>
