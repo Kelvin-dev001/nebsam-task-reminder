@@ -59,6 +59,9 @@ const trackingSchema = new mongoose.Schema({
   tracker2Renewal: { type: Number, default: 0 },
   magneticInstall: { type: Number, default: 0 },
   magneticRenewal: { type: Number, default: 0 },
+  // NEW metrics (tracked separately, not included in sales/KPIs)
+  expired: { type: Number, default: 0 },
+  inactive: { type: Number, default: 0 },
 }, { _id: false });
 
 const DailyDepartmentReportSchema = new mongoose.Schema({
