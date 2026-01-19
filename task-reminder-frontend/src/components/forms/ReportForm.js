@@ -13,36 +13,36 @@ const defaultMetricsByCode = {
     tracker2Install: 0,
     tracker2Renewal: 0,
     magneticInstall: 0,
-    magneticRenewal: 0
+    magneticRenewal: 0,
   },
   GOV: {
     nebsam: { officeInstall: 0, agentInstall: 0, officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 },
-    mockMombasa: { officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 }, // installs removed
-    sinotrack: { officeInstall: 0, agentInstall: 0, officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 }
+    mockMombasa: { officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 },
+    sinotrack: { officeInstall: 0, agentInstall: 0, officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 },
   },
   RADIO: {
     officeSale: 0,
     agentSale: 0,
-    officeRenewal: 0
+    officeRenewal: 0,
   },
   FUEL: {
     officeInstall: 0,
     agentInstall: 0,
     officeRenewal: 0,
     offline: 0,
-    checkups: 0
+    checkups: 0,
   },
   VTEL: {
     officeInstall: 0,
     agentInstall: 0,
     officeRenewal: 0,
     offline: 0,
-    checkups: 0
+    checkups: 0,
   },
   ONLINE: {
     installs: { bluetooth: 0, hybrid: 0, comprehensive: 0, hybridAlarm: 0 },
-    renewals: { bluetooth: 0, hybrid: 0, comprehensive: 0, hybridAlarm: 0 }
-  }
+    renewals: { bluetooth: 0, hybrid: 0, comprehensive: 0, hybridAlarm: 0 },
+  },
 };
 
 const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
@@ -53,16 +53,15 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
   const [metrics, setMetrics] = useState({});
 
   const selectedDept = useMemo(
-    () => departments.find(d => d._id === departmentId),
+    () => departments.find((d) => d._id === departmentId),
     [departments, departmentId]
   );
   const deptCode = selectedDept?.code;
 
   const ensureMetrics = () => {
     if (!deptCode) return {};
-    // If metrics is already populated, reuse
     if (metrics && Object.keys(metrics).length) return metrics;
-    // Deep clone default for safety
+    // deep clone default to avoid shared references
     return JSON.parse(JSON.stringify(defaultMetricsByCode[deptCode] || {}));
   };
 
@@ -71,10 +70,11 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
     const segments = path.split('.');
     let ref = m;
     for (let i = 0; i < segments.length - 1; i++) {
-      if (typeof ref[segments[i]] !== 'object' || ref[segments[i]] === null) {
-        ref[segments[i]] = {};
+      const key = segments[i];
+      if (typeof ref[key] !== 'object' || ref[key] === null) {
+        ref[key] = {};
       }
-      ref = ref[segments[i]];
+      ref = ref[key];
     }
     ref[segments[segments.length - 1]] = Number(value) || 0;
     setMetrics({ ...m });
@@ -83,52 +83,59 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!reportDate || !departmentId) return;
+
     const payload = {
       reportDate,
       departmentId,
       showroomId: deptCode === 'TRACK' ? showroomId : null,
       metrics: ensureMetrics(),
-      notes
+      notes,
     };
     onSubmit && onSubmit(payload);
   };
 
-  const renderGovGroup = (label, basePath, fields) => (
-    <Accordion disableGutters defaultExpanded>
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{label}</Typography>
-      </AccordionSummary>
-      <AccordionDetails>
-        <Grid container spacing={1.5} sx={{ mb: 0.5 }}>
-          {fields.map(f => (
-            <Grid item xs={6} sm={4} key={`${basePath}.${f}`}>
-              <TextField
-                label={f}
-                type="number"
-                value={ensureMetrics()?.[basePath]?.[f] ?? 0}
-                onChange={e => setMetric(`${basePath}.${f}`, e.target.value)}
-                fullWidth
-                size="small"
-              />
-            </Grid>
-          ))}
-        </Grid>
-      </AccordionDetails>
-    </Accordion>
-  );
+  const renderGovGroup = (label, basePath, fields) => {
+    const current = ensureMetrics() || {};
+    const groupObj = current[basePath] || {};
+    return (
+      <Accordion disableGutters defaultExpanded>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            {label}
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Grid container spacing={1.5} sx={{ mb: 0.5 }}>
+            {fields.map((f) => (
+              <Grid item xs={6} sm={4} key={`${basePath}.${f}`}>
+                <TextField
+                  label={f}
+                  type="number"
+                  value={groupObj[f] ?? 0}
+                  onChange={(e) => setMetric(`${basePath}.${f}`, e.target.value)}
+                  fullWidth
+                  size="small"
+                />
+              </Grid>
+            ))}
+          </Grid>
+        </AccordionDetails>
+      </Accordion>
+    );
+  };
 
   const renderOfficeAgent = () => {
     const current = ensureMetrics() || {};
     const fields = ['officeInstall', 'agentInstall', 'officeRenewal', 'offline', 'checkups'];
     return (
       <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
-        {fields.map(f => (
+        {fields.map((f) => (
           <Grid item xs={6} sm={4} key={f}>
             <TextField
               label={f}
               type="number"
               value={current[f] ?? 0}
-              onChange={e => setMetric(f, e.target.value)}
+              onChange={(e) => setMetric(f, e.target.value)}
               fullWidth
               size="small"
             />
@@ -152,7 +159,7 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
     ];
     return (
       <Grid container spacing={1.5}>
-        {fields.map(f => {
+        {fields.map((f) => {
           const [k1, k2] = f.path.split('.');
           return (
             <Grid item xs={6} sm={3} key={f.path}>
@@ -160,7 +167,7 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
                 label={f.label}
                 type="number"
                 value={current?.[k1]?.[k2] ?? 0}
-                onChange={e => setMetric(f.path, e.target.value)}
+                onChange={(e) => setMetric(f.path, e.target.value)}
                 fullWidth
                 size="small"
               />
@@ -172,17 +179,26 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
   };
 
   const renderDeptFields = () => {
+    const current = ensureMetrics();
     switch (deptCode) {
       case 'TRACK':
         return (
           <Grid container spacing={1.5}>
-            {['offlineVehicles','tracker1Install','tracker1Renewal','tracker2Install','tracker2Renewal','magneticInstall','magneticRenewal'].map(f => (
+            {[
+              'offlineVehicles',
+              'tracker1Install',
+              'tracker1Renewal',
+              'tracker2Install',
+              'tracker2Renewal',
+              'magneticInstall',
+              'magneticRenewal',
+            ].map((f) => (
               <Grid item xs={6} sm={4} key={f}>
                 <TextField
                   label={f}
                   type="number"
-                  value={ensureMetrics()?.[f] ?? 0}
-                  onChange={e => setMetric(f, e.target.value)}
+                  value={current[f] ?? 0}
+                  onChange={(e) => setMetric(f, e.target.value)}
                   fullWidth
                   size="small"
                 />
@@ -193,21 +209,40 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
       case 'GOV':
         return (
           <Stack spacing={1.5}>
-            {renderGovGroup('Nebsam Governor', 'nebsam', ['officeInstall','agentInstall','officeRenewal','agentRenewal','offline','checkups'])}
-            {renderGovGroup('Mock Mombasa', 'mockMombasa', ['officeRenewal','agentRenewal','offline','checkups'])}
-            {renderGovGroup('Sinotrack', 'sinotrack', ['officeInstall','agentInstall','officeRenewal','agentRenewal','offline','checkups'])}
+            {renderGovGroup('Nebsam Governor', 'nebsam', [
+              'officeInstall',
+              'agentInstall',
+              'officeRenewal',
+              'agentRenewal',
+              'offline',
+              'checkups',
+            ])}
+            {renderGovGroup('Mock Mombasa', 'mockMombasa', [
+              'officeRenewal',
+              'agentRenewal',
+              'offline',
+              'checkups',
+            ])}
+            {renderGovGroup('Sinotrack', 'sinotrack', [
+              'officeInstall',
+              'agentInstall',
+              'officeRenewal',
+              'agentRenewal',
+              'offline',
+              'checkups',
+            ])}
           </Stack>
         );
       case 'RADIO':
         return (
           <Grid container spacing={1.5}>
-            {['officeSale','agentSale','officeRenewal'].map(f => (
+            {['officeSale', 'agentSale', 'officeRenewal'].map((f) => (
               <Grid item xs={6} sm={4} key={f}>
                 <TextField
                   label={f}
                   type="number"
-                  value={ensureMetrics()?.[f] ?? 0}
-                  onChange={e => setMetric(f, e.target.value)}
+                  value={current[f] ?? 0}
+                  onChange={(e) => setMetric(f, e.target.value)}
                   fullWidth
                   size="small"
                 />
@@ -240,7 +275,7 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
           label="Report Date"
           type="date"
           value={reportDate}
-          onChange={e => setReportDate(e.target.value)}
+          onChange={(e) => setReportDate(e.target.value)}
           InputLabelProps={{ shrink: true }}
           required
         />
@@ -249,15 +284,17 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
           <Select
             value={departmentId}
             label="Department"
-            onChange={e => {
+            onChange={(e) => {
               setDepartmentId(e.target.value);
               setMetrics({});
               setShowroomId('');
             }}
           >
             <MenuItem value="">Select</MenuItem>
-            {departments.map(d => (
-              <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
+            {departments.map((d) => (
+              <MenuItem key={d._id} value={d._id}>
+                {d.name}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -267,11 +304,13 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
             <Select
               value={showroomId}
               label="Showroom"
-              onChange={e => setShowroomId(e.target.value)}
+              onChange={(e) => setShowroomId(e.target.value)}
             >
               <MenuItem value="">Select</MenuItem>
-              {showrooms.map(s => (
-                <MenuItem key={s._id} value={s._id}>{s.name}</MenuItem>
+              {showrooms.map((s) => (
+                <MenuItem key={s._id} value={s._id}>
+                  {s.name}
+                </MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -285,18 +324,22 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
       {renderDeptFields()}
 
       <Divider sx={{ my: 1 }} />
-      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Notes</Typography>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+        Notes
+      </Typography>
       <TextField
         label="Notes"
         value={notes}
-        onChange={e => setNotes(e.target.value)}
+        onChange={(e) => setNotes(e.target.value)}
         multiline
         rows={3}
         fullWidth
       />
 
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-start', gap: 1 }}>
-        <Button type="submit" variant="contained">Submit / Update Report</Button>
+        <Button type="submit" variant="contained">
+          Submit / Update Report
+        </Button>
       </Box>
     </Box>
   );
