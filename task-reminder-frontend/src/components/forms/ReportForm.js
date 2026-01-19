@@ -26,14 +26,18 @@ const defaultMetricsByCode = {
     officeRenewal: 0
   },
   FUEL: {
-    officeInstall: 0, agentInstall: 0,
+    officeInstall: 0,
+    agentInstall: 0,
     officeRenewal: 0,
-    offline: 0, checkups: 0
+    offline: 0,
+    checkups: 0
   },
   VTEL: {
-    officeInstall: 0, agentInstall: 0,
+    officeInstall: 0,
+    agentInstall: 0,
     officeRenewal: 0,
-    offline: 0, checkups: 0
+    offline: 0,
+    checkups: 0
   },
   ONLINE: {
     installs: { bluetooth: 0, hybrid: 0, comprehensive: 0, hybridAlarm: 0 },
@@ -48,12 +52,17 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
   const [notes, setNotes] = useState('');
   const [metrics, setMetrics] = useState({});
 
-  const selectedDept = useMemo(() => departments.find(d => d._id === departmentId), [departments, departmentId]);
+  const selectedDept = useMemo(
+    () => departments.find(d => d._id === departmentId),
+    [departments, departmentId]
+  );
   const deptCode = selectedDept?.code;
 
   const ensureMetrics = () => {
     if (!deptCode) return {};
+    // If metrics is already populated, reuse
     if (metrics && Object.keys(metrics).length) return metrics;
+    // Deep clone default for safety
     return JSON.parse(JSON.stringify(defaultMetricsByCode[deptCode] || {}));
   };
 
@@ -62,7 +71,9 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
     const segments = path.split('.');
     let ref = m;
     for (let i = 0; i < segments.length - 1; i++) {
-      if (!ref[segments[i]]) ref[segments[i]] = {};
+      if (typeof ref[segments[i]] !== 'object' || ref[segments[i]] === null) {
+        ref[segments[i]] = {};
+      }
       ref = ref[segments[i]];
     }
     ref[segments[segments.length - 1]] = Number(value) || 0;
@@ -94,7 +105,7 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
               <TextField
                 label={f}
                 type="number"
-                value={ensureMetrics()?.[basePath.split('.')[0]]?.[f] ?? 0}
+                value={ensureMetrics()?.[basePath]?.[f] ?? 0}
                 onChange={e => setMetric(`${basePath}.${f}`, e.target.value)}
                 fullWidth
                 size="small"
@@ -106,24 +117,29 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
     </Accordion>
   );
 
-  const renderOfficeAgent = (basePath, fields) => (
-    <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
-      {fields.map(f => (
-        <Grid item xs={6} sm={4} key={`${basePath}.${f}`}>
-          <TextField
-            label={f}
-            type="number"
-            value={ensureMetrics()?.[f] ?? 0}
-            onChange={e => setMetric(`${basePath}.${f}`, e.target.value)}
-            fullWidth
-            size="small"
-          />
-        </Grid>
-      ))}
-    </Grid>
-  );
+  const renderOfficeAgent = () => {
+    const current = ensureMetrics() || {};
+    const fields = ['officeInstall', 'agentInstall', 'officeRenewal', 'offline', 'checkups'];
+    return (
+      <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
+        {fields.map(f => (
+          <Grid item xs={6} sm={4} key={f}>
+            <TextField
+              label={f}
+              type="number"
+              value={current[f] ?? 0}
+              onChange={e => setMetric(f, e.target.value)}
+              fullWidth
+              size="small"
+            />
+          </Grid>
+        ))}
+      </Grid>
+    );
+  };
 
   const renderOnline = () => {
+    const current = ensureMetrics() || {};
     const fields = [
       { label: 'Installs - Bluetooth', path: 'installs.bluetooth' },
       { label: 'Installs - Hybrid', path: 'installs.hybrid' },
@@ -136,18 +152,21 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
     ];
     return (
       <Grid container spacing={1.5}>
-        {fields.map(f => (
-          <Grid item xs={6} sm={3} key={f.path}>
-            <TextField
-              label={f.label}
-              type="number"
-              value={ensureMetrics()?.[f.path.split('.')[0]]?.[f.path.split('.')[1]] ?? 0}
-              onChange={e => setMetric(f.path, e.target.value)}
-              fullWidth
-              size="small"
-            />
-          </Grid>
-        ))}
+        {fields.map(f => {
+          const [k1, k2] = f.path.split('.');
+          return (
+            <Grid item xs={6} sm={3} key={f.path}>
+              <TextField
+                label={f.label}
+                type="number"
+                value={current?.[k1]?.[k2] ?? 0}
+                onChange={e => setMetric(f.path, e.target.value)}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+          );
+        })}
       </Grid>
     );
   };
@@ -175,7 +194,7 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
         return (
           <Stack spacing={1.5}>
             {renderGovGroup('Nebsam Governor', 'nebsam', ['officeInstall','agentInstall','officeRenewal','agentRenewal','offline','checkups'])}
-            {renderGovGroup('Mock Mombasa', 'mockMombasa', ['officeRenewal','agentRenewal','offline','checkups'])} {/* installs removed */}
+            {renderGovGroup('Mock Mombasa', 'mockMombasa', ['officeRenewal','agentRenewal','offline','checkups'])}
             {renderGovGroup('Sinotrack', 'sinotrack', ['officeInstall','agentInstall','officeRenewal','agentRenewal','offline','checkups'])}
           </Stack>
         );
@@ -198,16 +217,24 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
         );
       case 'FUEL':
       case 'VTEL':
-        return renderOfficeAgent('', ['officeInstall','agentInstall','officeRenewal','offline','checkups']);
+        return renderOfficeAgent();
       case 'ONLINE':
         return renderOnline();
       default:
-        return <Typography variant="body2" color="text.secondary">Select a department to enter metrics.</Typography>;
+        return (
+          <Typography variant="body2" color="text.secondary">
+            Select a department to enter metrics.
+          </Typography>
+        );
     }
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <Box
+      component="form"
+      onSubmit={handleSubmit}
+      sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+    >
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
         <TextField
           label="Report Date"
@@ -225,6 +252,7 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
             onChange={e => {
               setDepartmentId(e.target.value);
               setMetrics({});
+              setShowroomId('');
             }}
           >
             <MenuItem value="">Select</MenuItem>
@@ -236,7 +264,11 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
         {deptCode === 'TRACK' && (
           <FormControl fullWidth required>
             <InputLabel>Showroom</InputLabel>
-            <Select value={showroomId} label="Showroom" onChange={e => setShowroomId(e.target.value)}>
+            <Select
+              value={showroomId}
+              label="Showroom"
+              onChange={e => setShowroomId(e.target.value)}
+            >
               <MenuItem value="">Select</MenuItem>
               {showrooms.map(s => (
                 <MenuItem key={s._id} value={s._id}>{s.name}</MenuItem>
@@ -247,7 +279,9 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
       </Stack>
 
       <Divider sx={{ my: 1 }} />
-      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Metrics</Typography>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+        Metrics {deptCode ? `– ${deptCode}` : ''}
+      </Typography>
       {renderDeptFields()}
 
       <Divider sx={{ my: 1 }} />

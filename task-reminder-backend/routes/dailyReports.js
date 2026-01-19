@@ -11,17 +11,22 @@ function normalizeDate(d) {
   return dt;
 }
 
+// Create / update daily report
 router.post('/reports', isAuthenticated, async (req, res) => {
   try {
     const { reportDate, departmentId, showroomId, metrics, notes } = req.body;
     const date = normalizeDate(reportDate);
-    if (!reportDate || !departmentId) return res.status(400).json({ error: 'reportDate and departmentId are required' });
+    if (!reportDate || !departmentId) {
+      return res.status(400).json({ error: 'reportDate and departmentId are required' });
+    }
 
     const dept = await Department.findById(departmentId);
     if (!dept) return res.status(404).json({ error: 'Department not found' });
 
     if (dept.code === 'TRACK') {
-      if (!showroomId) return res.status(400).json({ error: 'showroomId required for Tracking' });
+      if (!showroomId) {
+        return res.status(400).json({ error: 'showroomId required for Tracking' });
+      }
       const showroom = await Showroom.findById(showroomId);
       if (!showroom) return res.status(404).json({ error: 'Showroom not found' });
     }
@@ -68,10 +73,64 @@ router.post('/reports', isAuthenticated, async (req, res) => {
       { $set: update },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
+
     res.json(result);
   } catch (err) {
     console.error('Upsert report error', err);
     res.status(500).json({ error: err.message || 'Failed to upsert report' });
+  }
+});
+
+// NEW: My report logs (paginated)
+// GET /reports/my?page=1&limit=10
+router.get('/reports/my', isAuthenticated, async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit || '10', 10), 1), 50);
+    const skip = (page - 1) * limit;
+
+    const query = { submittedBy: req.user._id };
+
+    const [items, total] = await Promise.all([
+      DailyDepartmentReport.find(query)
+        .populate('departmentId', 'name code')
+        .populate('showroomId', 'name')
+        .sort({ reportDate: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      DailyDepartmentReport.countDocuments(query),
+    ]);
+
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    // Shape response with minimal data
+    const data = items.map(r => ({
+      id: r._id,
+      reportDate: r.reportDate,
+      department: {
+        id: r.departmentId?._id,
+        name: r.departmentId?.name,
+        code: r.departmentId?.code,
+      },
+      showroom: r.showroomId
+        ? { id: r.showroomId._id, name: r.showroomId.name }
+        : null,
+      notes: r.notes || '',
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    }));
+
+    res.json({
+      page,
+      limit,
+      total,
+      totalPages,
+      items: data,
+    });
+  } catch (err) {
+    console.error('Fetch my reports error', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch reports' });
   }
 });
 

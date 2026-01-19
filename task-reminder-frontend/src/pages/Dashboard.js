@@ -6,7 +6,8 @@ import { AuthContext } from '../contexts/AuthContext';
 import ReportForm from '../components/forms/ReportForm';
 import {
   AppBar, Toolbar, Typography, IconButton, Box, Container, Grid, Paper, Button,
-  TextField, Dialog, DialogTitle, DialogContent, DialogActions, Stack, Snackbar, Alert
+  TextField, Dialog, DialogTitle, DialogContent, DialogActions, Stack, Snackbar, Alert,
+  Table, TableBody, TableCell, TableHead, TableRow, TableContainer, TablePagination
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import logo from '../assets/logo.png';
@@ -30,12 +31,18 @@ const Dashboard = () => {
   // Toast
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
+  // My report logs
+  const [myReports, setMyReports] = useState([]);
+  const [myReportsPage, setMyReportsPage] = useState(0); // zero-based for TablePagination
+  const [myReportsRowsPerPage, setMyReportsRowsPerPage] = useState(10);
+  const [myReportsTotal, setMyReportsTotal] = useState(0);
+
   const theme = useTheme();
-  const isMobile = useTheme().breakpoints.down("sm");
+  const isMobile = theme.breakpoints.down('sm'); // you don't use isMobile as boolean here, but it's fine
   const navigate = useNavigate();
 
   const openToast = (severity, message) => setToast({ open: true, severity, message });
-  const closeToast = () => setToast({ ...toast, open: false });
+  const closeToast = () => setToast(prev => ({ ...prev, open: false }));
 
   const fetchTasks = async () => {
     const params = filterDate ? { date: filterDate } : {};
@@ -86,11 +93,31 @@ const Dashboard = () => {
     }
   };
 
+  const fetchMyReports = async (page = myReportsPage, rowsPerPage = myReportsRowsPerPage) => {
+    try {
+      const res = await api.get('/reports/my', {
+        params: { page: page + 1, limit: rowsPerPage },
+        withCredentials: true
+      });
+      setMyReports(res.data.items || []);
+      setMyReportsTotal(res.data.total || 0);
+    } catch {
+      setMyReports([]);
+      setMyReportsTotal(0);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        await Promise.all([fetchDepsAndShowrooms(), fetchTasks(), fetchMemos()]);
+        await Promise.all([
+          fetchDepsAndShowrooms(),
+          fetchTasks(),
+          fetchMemos(),
+          fetchMyReports(0, myReportsRowsPerPage)
+        ]);
+        setMyReportsPage(0);
       } finally {
         setLoading(false);
       }
@@ -130,9 +157,24 @@ const Dashboard = () => {
     try {
       await api.post('/reports', payload, { withCredentials: true });
       openToast('success', 'Report submitted/updated');
+      // Refresh logs after submit
+      fetchMyReports(0, myReportsRowsPerPage);
+      setMyReportsPage(0);
     } catch (err) {
       openToast('error', err.response?.data?.error || 'Failed to submit report');
     }
+  };
+
+  const handleMyReportsPageChange = (_event, newPage) => {
+    setMyReportsPage(newPage);
+    fetchMyReports(newPage, myReportsRowsPerPage);
+  };
+
+  const handleMyReportsRowsPerPageChange = (event) => {
+    const newRows = parseInt(event.target.value, 10);
+    setMyReportsRowsPerPage(newRows);
+    setMyReportsPage(0);
+    fetchMyReports(0, newRows);
   };
 
   // Handle Logout with redirect
@@ -172,7 +214,7 @@ const Dashboard = () => {
         <Notifications user={user} />
 
         {/* Submit Daily Report */}
-        <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mb: 4, borderRadius: 3 }}>
+        <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
             Submit / Update Daily Report
           </Typography>
@@ -183,8 +225,64 @@ const Dashboard = () => {
           />
         </Paper>
 
+        {/* My Report Logs */}
+        <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+            My Recent Reports
+          </Typography>
+          {myReports.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              You have not submitted any reports yet.
+            </Typography>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Department</TableCell>
+                    <TableCell>Showroom</TableCell>
+                    <TableCell>Notes</TableCell>
+                    <TableCell>Submitted At</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {myReports.map(r => (
+                    <TableRow key={r.id}>
+                      <TableCell>
+                        {r.reportDate ? new Date(r.reportDate).toLocaleDateString() : ''}
+                      </TableCell>
+                      <TableCell>
+                        {r.department?.name || r.department?.code || ''}
+                      </TableCell>
+                      <TableCell>
+                        {r.showroom?.name || '—'}
+                      </TableCell>
+                      <TableCell>
+                        {r.notes || '—'}
+                      </TableCell>
+                      <TableCell>
+                        {r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination
+                component="div"
+                count={myReportsTotal}
+                page={myReportsPage}
+                onPageChange={handleMyReportsPageChange}
+                rowsPerPage={myReportsRowsPerPage}
+                onRowsPerPageChange={handleMyReportsRowsPerPageChange}
+                rowsPerPageOptions={[5, 10, 20]}
+              />
+            </TableContainer>
+          )}
+        </Paper>
+
         {/* Memo list */}
-        <Paper elevation={2} sx={{ p: isMobile ? 2 : 3, mb: 3, borderRadius: 3 }}>
+        <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>Memos</Typography>
           {allMemos.length === 0 && (
             <Typography variant="body2" color="text.secondary">No memos yet.</Typography>
@@ -265,7 +363,12 @@ const Dashboard = () => {
         </DialogActions>
       </Dialog>
 
-      <Snackbar open={toast.open} autoHideDuration={4000} onClose={closeToast} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={4000}
+        onClose={closeToast}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
         <Alert onClose={closeToast} severity={toast.severity} sx={{ fontWeight: 700 }}>
           {toast.message}
         </Alert>
