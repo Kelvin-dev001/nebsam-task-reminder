@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, TextField, FormControl, InputLabel, Select, MenuItem, Stack } from '@mui/material';
+import { TextField, FormControl, InputLabel, Select, MenuItem, Stack } from '@mui/material';
 
 const Filters = ({ filters, onChange, departments = [], showrooms = [] }) => {
   const handleChange = (field, value) => onChange({ ...filters, [field]: value });
