@@ -3,17 +3,19 @@ import { AuthContext } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
   Button, TextField, Grid, Box, Typography, Container, Snackbar,
-  Paper, useMediaQuery, Alert
+  Paper, useMediaQuery, Alert, Link
 } from '@mui/material';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import { useTheme } from '@mui/material/styles';
 import logo from '../assets/logo.png';
+import ForgotPasswordDialog from '../components/ForgotPasswordDialog';
 
 const LoginPage = () => {
   const { login } = useContext(AuthContext);
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [snack, setSnack] = useState({ open: false, message: '', severity: "success" });
+  const [forgotOpen, setForgotOpen] = useState(false);
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -33,7 +35,7 @@ const LoginPage = () => {
         if (data.user.requiresPasswordChange) {
           navigate('/change-password');
         } else {
-          navigate('/user'); // go to user dashboard after login
+          navigate('/user');
         }
       }, 800);
     } catch (err) {
@@ -96,6 +98,11 @@ const LoginPage = () => {
                 />
               </Grid>
             </Grid>
+            <Box sx={{ mt: 1, textAlign: 'right' }}>
+              <Link component="button" type="button" onClick={() => setForgotOpen(true)} underline="hover">
+                Forgot password?
+              </Link>
+            </Box>
             <Button
               type="submit"
               fullWidth
@@ -121,6 +128,8 @@ const LoginPage = () => {
           {snack.message}
         </Alert>
       </Snackbar>
+
+      <ForgotPasswordDialog open={forgotOpen} onClose={() => setForgotOpen(false)} />
     </Container>
   );
 };

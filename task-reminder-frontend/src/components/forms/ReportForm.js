@@ -47,6 +47,8 @@ const defaultMetricsByCode = {
   },
 };
 
+const GLOBAL_SHOWROOM_VALUE = 'GLOBAL';
+
 const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
   const [reportDate, setReportDate] = useState('');
   const [departmentId, setDepartmentId] = useState('');
@@ -85,10 +87,18 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
     e.preventDefault();
     if (!reportDate || !departmentId) return;
 
+    // For TRACK: allow global showroom (null) when selected
+    const resolvedShowroom =
+      deptCode === 'TRACK' && showroomId === GLOBAL_SHOWROOM_VALUE
+        ? null
+        : deptCode === 'TRACK'
+        ? showroomId
+        : null;
+
     const payload = {
       reportDate,
       departmentId,
-      showroomId: deptCode === 'TRACK' ? showroomId : null,
+      showroomId: resolvedShowroom,
       metrics: ensureMetrics(),
       notes,
     };
@@ -302,7 +312,7 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
           </Select>
         </FormControl>
         {deptCode === 'TRACK' && (
-          <FormControl fullWidth required>
+          <FormControl fullWidth>
             <InputLabel>Showroom</InputLabel>
             <Select
               value={showroomId}
@@ -310,6 +320,7 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
               onChange={(e) => setShowroomId(e.target.value)}
             >
               <MenuItem value="">Select</MenuItem>
+              <MenuItem value={GLOBAL_SHOWROOM_VALUE}>Global (All Showrooms)</MenuItem>
               {showrooms.map((s) => (
                 <MenuItem key={s._id} value={s._id}>
                   {s.name}

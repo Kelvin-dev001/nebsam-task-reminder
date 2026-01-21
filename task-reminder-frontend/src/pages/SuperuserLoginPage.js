@@ -1,13 +1,15 @@
 import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import { Box, Paper, Typography, TextField, Button, Snackbar, Alert } from '@mui/material';
+import { Box, Paper, Typography, TextField, Button, Snackbar, Alert, Link } from '@mui/material';
+import ForgotPasswordDialog from '../components/ForgotPasswordDialog';
 
 const SuperuserLoginPage = () => {
   const { login } = useContext(AuthContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' });
+  const [forgotOpen, setForgotOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -57,8 +59,13 @@ const SuperuserLoginPage = () => {
             required
             value={password}
             onChange={e => setPassword(e.target.value)}
-            sx={{ mb: 2 }}
+            sx={{ mb: 1 }}
           />
+          <Box sx={{ textAlign: 'right', mb: 2 }}>
+            <Link component="button" type="button" onClick={() => setForgotOpen(true)} underline="hover">
+              Forgot password?
+            </Link>
+          </Box>
           <Button type="submit" variant="contained" color="primary" fullWidth>
             Login
           </Button>
@@ -74,6 +81,8 @@ const SuperuserLoginPage = () => {
           {snack.message}
         </Alert>
       </Snackbar>
+
+      <ForgotPasswordDialog open={forgotOpen} onClose={() => setForgotOpen(false)} />
     </Box>
   );
 };
