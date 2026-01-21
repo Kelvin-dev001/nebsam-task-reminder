@@ -7,64 +7,87 @@ import {
   Button,
   Typography,
   Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import api from '../api';
 import { AuthContext } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const CustomerLoginPage = () => {
-  const [step, setStep] = useState(1);
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
+  // Forgot password state
+  const [fpOpen, setFpOpen] = useState(false);
+  const [fpOtpSent, setFpOtpSent] = useState(false);
+  const [fpOtp, setFpOtp] = useState('');
+  const [fpNewPass, setFpNewPass] = useState('');
+  const [fpMsg, setFpMsg] = useState('');
+  const [fpErr, setFpErr] = useState('');
+
   const { setUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const startLogin = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErr('');
     setMsg('');
     try {
-      const res = await api.post('/customer-auth/login', { phone, password });
-      if (res.data.requiresOtp) {
-        setMsg('OTP sent to your phone.');
-        setStep(2);
-      } else {
-        setMsg('Login started, but OTP required.');
-      }
+      const res = await api.post('/customer-auth/login', { phone, password }, { withCredentials: true });
+      setUser(res.data.user);
+      setMsg('Login successful.');
+      navigate('/customer-complaints');
     } catch (error) {
-      setErr(error.response?.data?.error || 'Failed to start login');
+      setErr(error.response?.data?.error || 'Failed to login');
     } finally {
       setLoading(false);
     }
   };
 
-  const verifyLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setErr('');
-    setMsg('');
+  // Forgot password flow
+  const requestOtp = async () => {
+    setFpErr('');
+    setFpMsg('');
+    if (!phone.trim()) {
+      setFpErr('Phone is required');
+      return;
+    }
     try {
-      const res = await api.post('/customer-auth/verify-login', { phone, otp });
-      // JWT is set in cookie; we just update frontend context
-      setUser(res.data.user);
-      setMsg('Login successful.');
-      navigate('/customer-complaints');
+      await api.post('/customer-auth/forgot-password', { phone });
+      setFpMsg('If the account exists, an OTP has been sent.');
+      setFpOtpSent(true);
     } catch (error) {
-      const message = error.response?.data?.error || 'Failed to verify login';
-      setErr(message);
+      setFpErr(error.response?.data?.error || 'Failed to send OTP');
+    }
+  };
 
-      // If OTP has already been used or missing, send user back to step 1
-      if (message.includes('No login OTP found')) {
-        setStep(1);
-      }
-    } finally {
-      setLoading(false);
+  const resetPassword = async () => {
+    setFpErr('');
+    setFpMsg('');
+    if (!fpOtp.trim() || !fpNewPass.trim()) {
+      setFpErr('OTP and new password are required');
+      return;
+    }
+    try {
+      await api.post('/customer-auth/reset-password', {
+        phone,
+        otp: fpOtp,
+        newPassword: fpNewPass,
+      });
+      setFpMsg('Password reset successful. You can now log in.');
+      setFpOtpSent(false);
+      setFpOtp('');
+      setFpNewPass('');
+      setFpOpen(false);
+    } catch (error) {
+      setFpErr(error.response?.data?.error || 'Failed to reset password');
     }
   };
 
@@ -75,64 +98,36 @@ const CustomerLoginPage = () => {
           Customer Login
         </Typography>
 
-        {step === 1 && (
-          <Box
-            component="form"
-            onSubmit={startLogin}
-            sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
-          >
-            <TextField
-              label="Phone (start with +2547…)"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
-              fullWidth
-              helperText="Use the phone you registered with. +2547…, 07… and 2547… are all accepted."
-            />
-            <TextField
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              fullWidth
-            />
+        <Box
+          component="form"
+          onSubmit={handleLogin}
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+        >
+          <TextField
+            label="Phone (start with +2547…)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+            fullWidth
+            helperText="Use the phone you registered with. +2547…, 07… and 2547… are accepted."
+          />
+          <TextField
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            fullWidth
+          />
+          <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mt: 1 }}>
             <Button type="submit" variant="contained" disabled={loading}>
-              {loading ? 'Sending OTP...' : 'Login'}
+              {loading ? 'Logging in...' : 'Login'}
             </Button>
-          </Box>
-        )}
-
-        {step === 2 && (
-          <Box
-            component="form"
-            onSubmit={verifyLogin}
-            sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
-          >
-            <TextField
-              label="Phone (start with +2547…)"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
-              fullWidth
-            />
-            <TextField
-              label="Login OTP"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              required
-              fullWidth
-            />
-            <Stack direction="row" spacing={2}>
-              <Button type="submit" variant="contained" disabled={loading}>
-                {loading ? 'Verifying...' : 'Verify OTP'}
-              </Button>
-              <Button variant="outlined" onClick={() => setStep(1)}>
-                Back
-              </Button>
-            </Stack>
-          </Box>
-        )}
+            <Button variant="text" onClick={() => setFpOpen(true)}>
+              Forgot password?
+            </Button>
+          </Stack>
+        </Box>
 
         {msg && (
           <Typography sx={{ mt: 2 }} color="success.main">
@@ -145,6 +140,63 @@ const CustomerLoginPage = () => {
           </Typography>
         )}
       </Paper>
+
+      <Dialog open={fpOpen} onClose={() => { setFpOpen(false); setFpErr(''); setFpMsg(''); }}>
+        <DialogTitle>Reset Password</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ mt: 1, minWidth: 320 }}>
+            <TextField
+              label="Phone (start with +2547…)"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+              fullWidth
+            />
+            {!fpOtpSent && (
+              <Button variant="contained" onClick={requestOtp}>
+                Send OTP
+              </Button>
+            )}
+            {fpOtpSent && (
+              <>
+                <TextField
+                  label="OTP"
+                  value={fpOtp}
+                  onChange={(e) => setFpOtp(e.target.value)}
+                  required
+                  fullWidth
+                />
+                <TextField
+                  label="New Password"
+                  type="password"
+                  value={fpNewPass}
+                  onChange={(e) => setFpNewPass(e.target.value)}
+                  required
+                  fullWidth
+                />
+                <Button variant="contained" onClick={resetPassword}>
+                  Reset Password
+                </Button>
+              </>
+            )}
+            {fpMsg && (
+              <Typography color="success.main" variant="body2">
+                {fpMsg}
+              </Typography>
+            )}
+            {fpErr && (
+              <Typography color="error" variant="body2">
+                {fpErr}
+              </Typography>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setFpOpen(false); setFpErr(''); setFpMsg(''); }}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

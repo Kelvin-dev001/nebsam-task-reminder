@@ -53,7 +53,7 @@ async function setOtp(user, otpPlain) {
 }
 
 /**
- * STEP 1: Customer signup - start
+ * STEP 1: Customer signup - start (OTP via SMS)
  * POST /customer-auth/signup
  * body: { phone, name }
  */
@@ -163,7 +163,7 @@ router.post('/verify-signup', async (req, res) => {
 });
 
 /**
- * STEP 3: Login with phone+password: send login OTP (2FA)
+ * LOGIN (no OTP): phone + password => JWT cookie
  * POST /customer-auth/login
  * body: { phone, password }
  */
@@ -178,7 +178,7 @@ router.post('/login', async (req, res) => {
 
     phone = normalizePhone(phone);
 
-    const user = await User.findOne({ phone, role: 'customer' });
+    const user = await User.findOne({ phone, role: 'customer' }).select('+password');
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -189,70 +189,9 @@ router.post('/login', async (req, res) => {
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) return res.status(400).json({ error: 'Invalid credentials' });
 
-    const otp = generateOtp();
-    await setOtp(user, otp);
-    await user.save();
-
-    await sendSms(
-      phone,
-      `Your NEBSAM login code is: ${otp}. It expires in ${OTP_TTL_MINUTES} minutes.`
-    );
-
-    res.json({ message: 'Login OTP sent', requiresOtp: true });
-  } catch (err) {
-    console.error('Customer login error:', err);
-    res.status(500).json({ error: 'Failed to start login' });
-  }
-});
-
-/**
- * STEP 4: Verify login OTP and set auth cookie (JWT)
- * POST /customer-auth/verify-login
- * body: { phone, otp }
- */
-router.post('/verify-login', async (req, res) => {
-  try {
-    let { phone, otp } = req.body;
-    if (!phone || !otp) {
-      return res.status(400).json({ error: 'phone and otp are required' });
-    }
-
-    phone = normalizePhone(phone);
-
-    // Explicitly select OTP fields to avoid any projection issues
-    const user = await User.findOne({ phone, role: 'customer' }).select(
-      '+otpHash +otpExpiresAt +otpAttempts +password'
-    );
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    if (!user.otpHash || !user.otpExpiresAt) {
-      return res
-        .status(400)
-        .json({ error: 'No login OTP found. Please login again.' });
-    }
-    if (user.otpExpiresAt < new Date()) {
-      return res
-        .status(400)
-        .json({ error: 'OTP has expired. Please login again.' });
-    }
-
-    const ok = await bcrypt.compare(otp, user.otpHash);
-    if (!ok) {
-      user.otpAttempts = (user.otpAttempts || 0) + 1;
-      await user.save();
-      return res.status(400).json({ error: 'Invalid OTP' });
-    }
-
-    user.otpHash = undefined;
-    user.otpExpiresAt = undefined;
-    user.otpAttempts = 0;
-    await user.save();
-
     const JWT_SECRET = process.env.JWT_SECRET;
     if (!JWT_SECRET) {
-      console.error('[CUSTOMER VERIFY LOGIN] JWT_SECRET is missing in environment');
+      console.error('[CUSTOMER LOGIN] JWT_SECRET is missing in environment');
       return res.status(500).json({ error: 'Server configuration error (JWT secret missing)' });
     }
 
@@ -273,8 +212,86 @@ router.post('/verify-login', async (req, res) => {
         user: { id: user._id, name: user.name, phone: user.phone, role: user.role },
       });
   } catch (err) {
-    console.error('Customer verify-login error:', err);
-    res.status(500).json({ error: 'Failed to verify login' });
+    console.error('Customer login error:', err);
+    res.status(500).json({ error: 'Failed to login' });
+  }
+});
+
+/**
+ * FORGOT PASSWORD (send OTP via SMS)
+ * POST /customer-auth/forgot-password
+ * body: { phone }
+ */
+router.post('/forgot-password', async (req, res) => {
+  try {
+    let { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'phone is required' });
+
+    phone = normalizePhone(phone);
+
+    const user = await User.findOne({ phone, role: 'customer' }).select('+otpHash +otpExpiresAt +otpAttempts');
+    // Always 200 to avoid enumeration
+    if (!user) return res.json({ message: 'If the account exists, an OTP has been sent.' });
+
+    const otp = generateOtp();
+    await setOtp(user, otp);
+    await user.save();
+
+    await sendSms(
+      phone,
+      `Your NEBSAM password reset code is: ${otp}. It expires in ${OTP_TTL_MINUTES} minutes.`
+    );
+
+    res.json({ message: 'If the account exists, an OTP has been sent.' });
+  } catch (err) {
+    console.error('Customer forgot-password error:', err);
+    res.status(500).json({ error: 'Failed to process forgot-password' });
+  }
+});
+
+/**
+ * RESET PASSWORD WITH OTP
+ * POST /customer-auth/reset-password
+ * body: { phone, otp, newPassword }
+ */
+router.post('/reset-password', async (req, res) => {
+  try {
+    let { phone, otp, newPassword } = req.body;
+    if (!phone || !otp || !newPassword) {
+      return res.status(400).json({ error: 'phone, otp, and newPassword are required' });
+    }
+
+    phone = normalizePhone(phone);
+
+    const user = await User.findOne({ phone, role: 'customer' }).select('+otpHash +otpExpiresAt +otpAttempts +password');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (!user.otpHash || !user.otpExpiresAt) {
+      return res.status(400).json({ error: 'No OTP found. Please request a new one.' });
+    }
+    if (user.otpExpiresAt < new Date()) {
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    const ok = await bcrypt.compare(otp, user.otpHash);
+    if (!ok) {
+      user.otpAttempts = (user.otpAttempts || 0) + 1;
+      await user.save();
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    user.password = hashed;
+    user.requiresPasswordChange = false;
+    user.otpHash = undefined;
+    user.otpExpiresAt = undefined;
+    user.otpAttempts = 0;
+    await user.save();
+
+    res.json({ message: 'Password reset successful. You can now log in.' });
+  } catch (err) {
+    console.error('Customer reset-password error:', err);
+    res.status(500).json({ error: 'Failed to reset password' });
   }
 });
 
