@@ -1,8 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { Container, Paper, TextField, Button, Typography, Box, Stack, Snackbar, Alert, MenuItem } from '@mui/material';
 import api from '../api';
+import { AuthContext } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const CustomerComplaintPage = () => {
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+
   const [departments, setDepartments] = useState([]);
   const [form, setForm] = useState({
     customerName: '',
@@ -13,6 +18,13 @@ const CustomerComplaintPage = () => {
   });
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState({ open: false, success: true, message: '' });
+
+  // Route protection: only logged-in customers
+  useEffect(() => {
+    if (!user || user.role !== 'customer') {
+      navigate('/customer-signup');
+    }
+  }, [user, navigate]);
 
   const loadDepartments = async () => {
     try {
@@ -31,7 +43,7 @@ const CustomerComplaintPage = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.post('/complaints', form, { withCredentials: false });
+      await api.post('/complaints', form, { withCredentials: true });
       setToast({ open: true, success: true, message: 'Complaint submitted successfully' });
       setForm({ customerName: '', plateOrCompany: '', mobile: '', service: '', issue: '' });
     } catch (err) {
