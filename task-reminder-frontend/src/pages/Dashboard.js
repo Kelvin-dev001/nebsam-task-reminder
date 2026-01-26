@@ -324,7 +324,7 @@ const Dashboard = () => {
             />
           </Box>
           <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700 }}>
-            Nebsam Task Reminder
+            Nebsam Task Manager
           </Typography>
 
           <FormControlLabel
@@ -376,7 +376,7 @@ const Dashboard = () => {
             mr: 1,
           }}
         >
-          Hi Cousins <span role="img" aria-label="waving hand">👋</span>
+         Welcome to Nebsam Task Manager
         </Typography>
       </Box>
 
