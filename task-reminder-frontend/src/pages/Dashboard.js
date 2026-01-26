@@ -27,10 +27,13 @@ import {
   Pagination,
   FormControlLabel,
   Switch,
+  Collapse,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import logo from '../assets/logo.png';
 import Loader from '../components/Loader';
 import { useNavigate } from 'react-router-dom';
@@ -48,6 +51,9 @@ const Dashboard = () => {
   const [filterDate, setFilterDate] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Top-level tab: 0 = Submit Report, 1 = My Reports, 2 = Memos, 3 = Tasks
+  const [mainTab, setMainTab] = useState(0);
+
   // Memos
   const [unseenMemos, setUnseenMemos] = useState([]);
   const [allMemos, setAllMemos] = useState([]);
@@ -60,11 +66,16 @@ const Dashboard = () => {
   // Toast
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
-  // My report logs
+  // My reports
   const [myReports, setMyReports] = useState([]);
-  const [myReportsPage, setMyReportsPage] = useState(0); // zero-based
-  const [myReportsRowsPerPage, setMyReportsRowsPerPage] = useState(10);
   const [myReportsTotal, setMyReportsTotal] = useState(0);
+  const [myReportsPage, setMyReportsPage] = useState(1); // 1-based
+  const [myReportsRowsPerPage, setMyReportsRowsPerPage] = useState(10);
+  const [myReportsFilters, setMyReportsFilters] = useState({
+    startDate: '',
+    endDate: '',
+  });
+  const [expandedReportId, setExpandedReportId] = useState(null);
 
   // Task tab: pending vs done
   const [taskTab, setTaskTab] = useState('pending'); // 'pending' | 'done'
@@ -78,7 +89,7 @@ const Dashboard = () => {
   const audioRef = useRef(null);
 
   const openToast = (severity, message) => setToast({ open: true, severity, message });
-  const closeToast = () => setToast(prev => ({ ...prev, open: false }));
+  const closeToast = () => setToast((prev) => ({ ...prev, open: false }));
 
   const handleToggleSound = () => {
     const next = !soundEnabled;
@@ -155,10 +166,15 @@ const Dashboard = () => {
     }
   };
 
-  const fetchMyReports = async (page = myReportsPage, rowsPerPage = myReportsRowsPerPage) => {
+  const fetchMyReports = async () => {
     try {
+      const params = {
+        page: myReportsPage,
+        limit: myReportsRowsPerPage,
+        ...myReportsFilters,
+      };
       const res = await api.get('/reports/my', {
-        params: { page: page + 1, limit: rowsPerPage },
+        params,
         withCredentials: true,
       });
       setMyReports(res.data.items || []);
@@ -177,16 +193,15 @@ const Dashboard = () => {
           fetchDepsAndShowrooms(),
           fetchTasks(),
           fetchMemos(),
-          fetchMyReports(0, myReportsRowsPerPage),
+          fetchMyReports(),
         ]);
-        setMyReportsPage(0);
       } finally {
         setLoading(false);
       }
     };
     fetchData();
     // eslint-disable-next-line
-  }, [filterDate]);
+  }, [filterDate, myReportsPage, myReportsRowsPerPage, myReportsFilters]);
 
   // Poll unseen memos every 60s
   useEffect(() => {
@@ -198,7 +213,7 @@ const Dashboard = () => {
   const markMemoSeen = async (id) => {
     try {
       await api.post(`/memos/${id}/seen`, {}, { withCredentials: true });
-      setUnseenMemos(prev => prev.filter(m => m._id !== id));
+      setUnseenMemos((prev) => prev.filter((m) => m._id !== id));
       if (unseenMemos.length <= 1) setMemoModalOpen(false);
     } catch {
       // ignore
@@ -220,9 +235,10 @@ const Dashboard = () => {
     try {
       await api.post('/reports', payload, { withCredentials: true });
       openToast('success', 'Report submitted/updated');
-      // Refresh logs after submit
-      fetchMyReports(0, myReportsRowsPerPage);
-      setMyReportsPage(0);
+      // Refresh my reports after submit
+      setMyReportsPage(1);
+      fetchMyReports();
+      setMainTab(1); // switch to My Reports tab after submission
     } catch (err) {
       openToast('error', err.response?.data?.error || 'Failed to submit report');
     }
@@ -230,14 +246,23 @@ const Dashboard = () => {
 
   const handleMyReportsPageChange = (_event, newPage) => {
     setMyReportsPage(newPage);
-    fetchMyReports(newPage, myReportsRowsPerPage);
   };
 
   const handleMyReportsRowsPerPageChange = (event) => {
     const newRows = parseInt(event.target.value, 10);
     setMyReportsRowsPerPage(newRows);
-    setMyReportsPage(0);
-    fetchMyReports(0, newRows);
+    setMyReportsPage(1);
+  };
+
+  const handleMyReportsFilterChange = (e) => {
+    const { name, value } = e.target;
+    setMyReportsFilters((prev) => ({ ...prev, [name]: value }));
+    setMyReportsPage(1);
+  };
+
+  const handleClearReportFilters = () => {
+    setMyReportsFilters({ startDate: '', endDate: '' });
+    setMyReportsPage(1);
   };
 
   // Handle Logout with redirect
@@ -273,6 +298,15 @@ const Dashboard = () => {
 
   const handleMemosPageChange = (_e, page) => {
     setMemosPage(page);
+  };
+
+  const totalMyReportPages = Math.max(
+    1,
+    Math.ceil(myReportsTotal / myReportsRowsPerPage)
+  );
+
+  const toggleExpandedReport = (id) => {
+    setExpandedReportId((prev) => (prev === id ? null : id));
   };
 
   if (loading) return <Loader />;
@@ -326,7 +360,7 @@ const Dashboard = () => {
       <Box
         sx={{
           mt: 3,
-          mb: 2,
+          mb: 1,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -346,244 +380,361 @@ const Dashboard = () => {
         </Typography>
       </Box>
 
-      <Container maxWidth="md" sx={{ mt: 4, pb: 6 }}>
+      <Container maxWidth="md" sx={{ mt: 2, pb: 6 }}>
         <Notifications user={user} />
 
-        {/* Submit Daily Report */}
-        <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            Submit / Update Daily Report
-          </Typography>
-          <ReportForm
-            departments={departments}
-            showrooms={showrooms}
-            onSubmit={handleSubmitReport}
-          />
+        <Paper elevation={3} sx={{ p: 2, borderRadius: 3, mb: 3 }}>
+          <Tabs
+            value={mainTab}
+            onChange={(_, v) => setMainTab(v)}
+            textColor="primary"
+            indicatorColor="primary"
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            <Tab label="Submit Report" />
+            <Tab label="My Reports" />
+            <Tab label="Memos" />
+            <Tab label="Tasks" />
+          </Tabs>
         </Paper>
 
-        {/* My Report Logs */}
-        <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            My Recent Reports
-          </Typography>
-          {myReports.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              You have not submitted any reports yet.
+        {/* Submit Report Tab */}
+        {mainTab === 0 && (
+          <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+              Submit / Update Daily Report
             </Typography>
-          ) : (
+            <ReportForm
+              departments={departments}
+              showrooms={showrooms}
+              onSubmit={handleSubmitReport}
+            />
+          </Paper>
+        )}
+
+        {/* My Reports Tab */}
+        {mainTab === 1 && (
+          <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+              My Reports
+            </Typography>
+
+            {/* Filters */}
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              sx={{ mb: 2, alignItems: 'center' }}
+            >
+              <TextField
+                type="date"
+                label="Start Date"
+                name="startDate"
+                value={myReportsFilters.startDate}
+                onChange={handleMyReportsFilterChange}
+                InputLabelProps={{ shrink: true }}
+                sx={{ minWidth: 180 }}
+              />
+              <TextField
+                type="date"
+                label="End Date"
+                name="endDate"
+                value={myReportsFilters.endDate}
+                onChange={handleMyReportsFilterChange}
+                InputLabelProps={{ shrink: true }}
+                sx={{ minWidth: 180 }}
+              />
+              <Button
+                variant="outlined"
+                color="secondary"
+                size="small"
+                onClick={handleClearReportFilters}
+              >
+                Clear Filters
+              </Button>
+              <Box sx={{ flexGrow: 1 }} />
+              <TextField
+                select
+                SelectProps={{ native: true }}
+                size="small"
+                label="Rows"
+                value={myReportsRowsPerPage}
+                onChange={handleMyReportsRowsPerPageChange}
+                sx={{ width: 90 }}
+              >
+                {[5, 10, 20].map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </TextField>
+            </Stack>
+
+            {/* Table */}
             <Box sx={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
-                    <th style={{ padding: 8, textAlign: 'left' }}>Date</th>
+                    <th style={{ padding: 8, textAlign: 'left' }}>Report Date</th>
+                    <th style={{ padding: 8, textAlign: 'left' }}>Submitted At</th>
                     <th style={{ padding: 8, textAlign: 'left' }}>Department</th>
                     <th style={{ padding: 8, textAlign: 'left' }}>Showroom</th>
                     <th style={{ padding: 8, textAlign: 'left' }}>Notes</th>
-                    <th style={{ padding: 8, textAlign: 'left' }}>Submitted At</th>
+                    <th style={{ padding: 8, textAlign: 'left' }}>Details</th>
                   </tr>
                 </thead>
                 <tbody>
                   {myReports.map((r) => (
-                    <tr key={r.id}>
-                      <td style={{ padding: 8 }}>
-                        {r.reportDate ? new Date(r.reportDate).toLocaleDateString() : ''}
-                      </td>
-                      <td style={{ padding: 8 }}>
-                        {r.department?.name || r.department?.code || ''}
-                      </td>
-                      <td style={{ padding: 8 }}>
-                        {r.showroom?.name || '—'}
-                      </td>
-                      <td style={{ padding: 8 }}>
-                        {r.notes || '—'}
-                      </td>
-                      <td style={{ padding: 8 }}>
-                        {r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}
+                    <React.Fragment key={r._id}>
+                      <tr>
+                        <td style={{ padding: 8 }}>
+                          {r.reportDate
+                            ? new Date(r.reportDate).toLocaleDateString()
+                            : ''}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {r.createdAt
+                            ? new Date(r.createdAt).toLocaleString()
+                            : ''}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {r.departmentId?.name || r.departmentId?.code || ''}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {r.showroomId?.name || '—'}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {r.notes || '—'}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => toggleExpandedReport(r._id)}
+                            startIcon={
+                              expandedReportId === r._id ? (
+                                <ExpandLessIcon fontSize="small" />
+                              ) : (
+                                <ExpandMoreIcon fontSize="small" />
+                              )
+                            }
+                          >
+                            {expandedReportId === r._id ? 'Hide' : 'View'}
+                          </Button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td colSpan={6} style={{ padding: 0, borderBottom: '1px solid #eee' }}>
+                          <Collapse in={expandedReportId === r._id} timeout="auto" unmountOnExit>
+                            <Box sx={{ p: 2, bgcolor: '#f7f9ff' }}>
+                              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                Raw Metrics (per department type)
+                              </Typography>
+                              <pre
+                                style={{
+                                  margin: 0,
+                                  fontSize: 12,
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word',
+                                }}
+                              >
+                                {JSON.stringify(
+                                  {
+                                    tracking: r.tracking,
+                                    speedGovernor: r.speedGovernor,
+                                    radio: r.radio,
+                                    fuel: r.fuel,
+                                    vehicleTelematics: r.vehicleTelematics,
+                                    online: r.online,
+                                  },
+                                  null,
+                                  2
+                                )}
+                              </pre>
+                            </Box>
+                          </Collapse>
+                        </td>
+                      </tr>
+                    </React.Fragment>
+                  ))}
+                  {myReports.length === 0 && (
+                    <tr>
+                      <td colSpan={6} style={{ padding: 16, textAlign: 'center' }}>
+                        No reports found for the selected filters.
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                <TextField
-                  select
-                  SelectProps={{ native: true }}
+            </Box>
+
+            {/* Pagination */}
+            {totalMyReportPages > 1 && (
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                <Pagination
+                  count={totalMyReportPages}
+                  page={myReportsPage}
+                  onChange={handleMyReportsPageChange}
+                  color="primary"
                   size="small"
-                  label="Rows"
-                  value={myReportsRowsPerPage}
-                  onChange={handleMyReportsRowsPerPageChange}
-                  sx={{ width: 90, mr: 2 }}
+                />
+              </Box>
+            )}
+          </Paper>
+        )}
+
+        {/* Memos Tab */}
+        {mainTab === 2 && (
+          <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 3 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                mb: 1,
+              }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Memos
+              </Typography>
+              <Button size="small" onClick={handleToggleMemosExpanded}>
+                {memosExpanded ? 'Hide All' : 'View All'}
+              </Button>
+            </Box>
+
+            {!latestMemo && (
+              <Typography variant="body2" color="text.secondary">
+                No memos yet.
+              </Typography>
+            )}
+
+            {latestMemo && (
+              <Paper
+                variant="outlined"
+                sx={{ p: 1.5, borderRadius: 2, mb: memosExpanded ? 2 : 0 }}
+              >
+                <Typography
+                  variant="subtitle1"
+                  sx={{ fontWeight: 700, mb: 0.5 }}
                 >
-                  {[5, 10, 20].map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </TextField>
-                <Typography variant="body2" sx={{ alignSelf: 'center', mr: 1 }}>
-                  Page {myReportsPage + 1} of{' '}
-                  {Math.max(1, Math.ceil(myReportsTotal / myReportsRowsPerPage))}
+                  Latest: {latestMemo.title}
                 </Typography>
+                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                  {latestMemo.message}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  By: {latestMemo.createdBy?.name || latestMemo.createdBy?.email} —{' '}
+                  {new Date(latestMemo.createdAt).toLocaleString()}
+                </Typography>
+              </Paper>
+            )}
+
+            {memosExpanded && allMemos.length > 1 && (
+              <>
+                <Stack spacing={1.5} sx={{ mt: 1 }}>
+                  {pagedMemos.map((m) => (
+                    <Paper
+                      key={m._id}
+                      variant="outlined"
+                      sx={{ p: 1.5, borderRadius: 2 }}
+                    >
+                      <Typography
+                        variant="subtitle2"
+                        sx={{ fontWeight: 600 }}
+                      >
+                        {m.title}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{ mt: 0.5, mb: 0.5 }}
+                      >
+                        {m.message}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        By: {m.createdBy?.name || m.createdBy?.email} —{' '}
+                        {new Date(m.createdAt).toLocaleString()}
+                      </Typography>
+                    </Paper>
+                  ))}
+                </Stack>
+                {totalMemoPages > 1 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                    <Pagination
+                      count={totalMemoPages}
+                      page={currentMemosPage}
+                      onChange={handleMemosPageChange}
+                      size="small"
+                      color="primary"
+                    />
+                  </Box>
+                )}
+              </>
+            )}
+          </Paper>
+        )}
+
+        {/* Tasks Tab */}
+        {mainTab === 3 && (
+          <>
+            {/* Filter tasks by date */}
+            <Paper elevation={1} sx={{ p: 2, mb: 2, borderRadius: 2 }}>
+              <Box
+                sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}
+              >
+                <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                  Filter tasks by Date:
+                </Typography>
+                <TextField
+                  type="date"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ maxWidth: 200 }}
+                />
                 <Button
+                  onClick={() => setFilterDate('')}
+                  color="secondary"
+                  variant="outlined"
                   size="small"
-                  disabled={myReportsPage === 0}
-                  onClick={() => handleMyReportsPageChange(null, myReportsPage - 1)}
                 >
-                  Prev
-                </Button>
-                <Button
-                  size="small"
-                  disabled={(myReportsPage + 1) * myReportsRowsPerPage >= myReportsTotal}
-                  onClick={() => handleMyReportsPageChange(null, myReportsPage + 1)}
-                >
-                  Next
+                  Clear
                 </Button>
               </Box>
-            </Box>
-          )}
-        </Paper>
-
-        {/* Memos */}
-        <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 3 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              mb: 1,
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Memos
-            </Typography>
-            <Button size="small" onClick={handleToggleMemosExpanded}>
-              {memosExpanded ? 'Hide All' : 'View All'}
-            </Button>
-          </Box>
-
-          {!latestMemo && (
-            <Typography variant="body2" color="text.secondary">
-              No memos yet.
-            </Typography>
-          )}
-
-          {latestMemo && (
-            <Paper
-              variant="outlined"
-              sx={{ p: 1.5, borderRadius: 2, mb: memosExpanded ? 2 : 0 }}
-            >
-              <Typography
-                variant="subtitle1"
-                sx={{ fontWeight: 700, mb: 0.5 }}
-              >
-                Latest: {latestMemo.title}
-              </Typography>
-              <Typography variant="body2" sx={{ mb: 0.5 }}>
-                {latestMemo.message}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                By: {latestMemo.createdBy?.name || latestMemo.createdBy?.email} —{' '}
-                {new Date(latestMemo.createdAt).toLocaleString()}
-              </Typography>
             </Paper>
-          )}
 
-          {memosExpanded && allMemos.length > 1 && (
-            <>
-              <Stack spacing={1.5} sx={{ mt: 1 }}>
-                {pagedMemos.map((m) => (
-                  <Paper
-                    key={m._id}
-                    variant="outlined"
-                    sx={{ p: 1.5, borderRadius: 2 }}
-                  >
-                    <Typography
-                      variant="subtitle2"
-                      sx={{ fontWeight: 600 }}
-                    >
-                      {m.title}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{ mt: 0.5, mb: 0.5 }}
-                    >
-                      {m.message}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      By: {m.createdBy?.name || m.createdBy?.email} —{' '}
-                      {new Date(m.createdAt).toLocaleString()}
-                    </Typography>
-                  </Paper>
+            {/* Task tabs + list */}
+            <Paper elevation={2} sx={{ p: 2.5, borderRadius: 3 }}>
+              <Tabs
+                value={taskTab}
+                onChange={(_, v) => setTaskTab(v)}
+                textColor="primary"
+                indicatorColor="primary"
+                sx={{ mb: 2 }}
+              >
+                <Tab value="pending" label="Pending / In Progress" />
+                <Tab value="done" label="Done" />
+              </Tabs>
+
+              <Grid container spacing={3}>
+                {visibleTasks.map((task) => (
+                  <Grid item xs={12} sm={6} md={4} key={task._id}>
+                    <TaskCard task={task} onUpdate={handleUpdate} />
+                  </Grid>
                 ))}
-              </Stack>
-              {totalMemoPages > 1 && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                  <Pagination
-                    count={totalMemoPages}
-                    page={currentMemosPage}
-                    onChange={handleMemosPageChange}
-                    size="small"
-                    color="primary"
-                  />
-                </Box>
-              )}
-            </>
-          )}
-        </Paper>
-
-        {/* Filter tasks by date */}
-        <Paper elevation={1} sx={{ p: 2, mb: 2, borderRadius: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            <Typography variant="body1" sx={{ fontWeight: 500 }}>
-              Filter tasks by Date:
-            </Typography>
-            <TextField
-              type="date"
-              value={filterDate}
-              onChange={e => setFilterDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              sx={{ maxWidth: 200 }}
-            />
-            <Button
-              onClick={() => setFilterDate('')}
-              color="secondary"
-              variant="outlined"
-              size="small"
-            >
-              Clear
-            </Button>
-          </Box>
-        </Paper>
-
-        {/* Task tabs + list */}
-        <Paper elevation={2} sx={{ p: 2.5, borderRadius: 3 }}>
-          <Tabs
-            value={taskTab}
-            onChange={(_, v) => setTaskTab(v)}
-            textColor="primary"
-            indicatorColor="primary"
-            sx={{ mb: 2 }}
-          >
-            <Tab value="pending" label="Pending / In Progress" />
-            <Tab value="done" label="Done" />
-          </Tabs>
-
-          <Grid container spacing={3}>
-            {visibleTasks.map(task => (
-              <Grid item xs={12} sm={6} md={4} key={task._id}>
-                <TaskCard task={task} onUpdate={handleUpdate} />
+                {visibleTasks.length === 0 && (
+                  <Grid item xs={12}>
+                    <Paper
+                      sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}
+                    >
+                      No {taskTab === 'pending' ? 'pending' : 'done'} tasks found for
+                      the selected date.
+                    </Paper>
+                  </Grid>
+                )}
               </Grid>
-            ))}
-            {visibleTasks.length === 0 && (
-              <Grid item xs={12}>
-                <Paper sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-                  No {taskTab === 'pending' ? 'pending' : 'done'} tasks found for the
-                  selected date.
-                </Paper>
-              </Grid>
-            )}
-          </Grid>
-        </Paper>
+            </Paper>
+          </>
+        )}
       </Container>
 
       {/* Memo modal for unseen memos */}
@@ -595,7 +746,7 @@ const Dashboard = () => {
       >
         <DialogTitle>New Memo</DialogTitle>
         <DialogContent dividers>
-          {unseenMemos.map(m => (
+          {unseenMemos.map((m) => (
             <Box key={m._id} sx={{ mb: 2 }}>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 {m.title}
@@ -635,7 +786,11 @@ const Dashboard = () => {
         onClose={closeToast}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert onClose={closeToast} severity={toast.severity} sx={{ fontWeight: 700 }}>
+        <Alert
+          onClose={closeToast}
+          severity={toast.severity}
+          sx={{ fontWeight: 700 }}
+        >
           {toast.message}
         </Alert>
       </Snackbar>
