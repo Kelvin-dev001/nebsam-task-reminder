@@ -64,7 +64,11 @@ const Dashboard = () => {
   const [memosPage, setMemosPage] = useState(1); // 1-based for Pagination
 
   // Toast
-  const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
+  const [toast, setToast] = useState({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   // My reports
   const [myReports, setMyReports] = useState([]);
@@ -88,8 +92,13 @@ const Dashboard = () => {
   const [lastTaskCount, setLastTaskCount] = useState(0);
   const audioRef = useRef(null);
 
-  const openToast = (severity, message) => setToast({ open: true, severity, message });
-  const closeToast = () => setToast((prev) => ({ ...prev, open: false }));
+  const openToast = (severity, message) =>
+    setToast({ open: true, severity, message });
+  const closeToast = () =>
+    setToast((prev) => ({
+      ...prev,
+      open: false,
+    }));
 
   const handleToggleSound = () => {
     const next = !soundEnabled;
@@ -118,7 +127,11 @@ const Dashboard = () => {
       const res = await api.get('/memos/unseen', { withCredentials: true });
       const unseen = res.data || [];
       // Sound: new unseen memos
-      if (soundEnabled && lastUnseenCount !== 0 && unseen.length > lastUnseenCount) {
+      if (
+        soundEnabled &&
+        lastUnseenCount !== 0 &&
+        unseen.length > lastUnseenCount
+      ) {
         audioRef.current?.play().catch(() => {});
       }
       setUnseenMemos(unseen);
@@ -138,7 +151,11 @@ const Dashboard = () => {
       const unseen = unseenRes.data || [];
       const all = allRes.data || [];
 
-      if (soundEnabled && lastUnseenCount !== 0 && unseen.length > lastUnseenCount) {
+      if (
+        soundEnabled &&
+        lastUnseenCount !== 0 &&
+        unseen.length > lastUnseenCount
+      ) {
         audioRef.current?.play().catch(() => {});
       }
 
@@ -309,6 +326,173 @@ const Dashboard = () => {
     setExpandedReportId((prev) => (prev === id ? null : id));
   };
 
+  const renderTrackingDetails = (tracking) => {
+    if (!tracking) return null;
+    return (
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+          Tracking
+        </Typography>
+        <Grid container spacing={1}>
+          <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              Tracker 1
+            </Typography>
+            <Typography variant="caption" display="block">
+              Installs: {tracking.tracker1Install || 0}
+            </Typography>
+            <Typography variant="caption" display="block">
+              Renewals: {tracking.tracker1Renewal || 0}
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              Tracker 2
+            </Typography>
+            <Typography variant="caption" display="block">
+              Installs: {tracking.tracker2Install || 0}
+            </Typography>
+            <Typography variant="caption" display="block">
+              Renewals: {tracking.tracker2Renewal || 0}
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              Magnetic
+            </Typography>
+            <Typography variant="caption" display="block">
+              Installs: {tracking.magneticInstall || 0}
+            </Typography>
+            <Typography variant="caption" display="block">
+              Renewals: {tracking.magneticRenewal || 0}
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Typography variant="caption" display="block">
+              Offline Vehicles: {tracking.offlineVehicles || 0}
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Typography variant="caption" display="block">
+              Expired: {tracking.expired || 0}
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Typography variant="caption" display="block">
+              Inactive: {tracking.inactive || 0}
+            </Typography>
+          </Grid>
+        </Grid>
+      </Box>
+    );
+  };
+
+  const renderGovDetails = (gov) => {
+    if (!gov) return null;
+    const renderBlock = (label, data) => (
+      <Grid item xs={12} sm={4} key={label}>
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+          {label}
+        </Typography>
+        <Typography variant="caption" display="block">
+          Office Installs: {data.officeInstall || 0}
+        </Typography>
+        {data.agentInstall !== undefined && (
+          <Typography variant="caption" display="block">
+            Agent Installs: {data.agentInstall || 0}
+          </Typography>
+        )}
+        <Typography variant="caption" display="block">
+          Office Renewals: {data.officeRenewal || 0}
+        </Typography>
+        <Typography variant="caption" display="block">
+          Agent Renewals: {data.agentRenewal || 0}
+        </Typography>
+        <Typography variant="caption" display="block">
+          Offline: {data.offline || 0}
+        </Typography>
+        <Typography variant="caption" display="block">
+          Checkups: {data.checkups || 0}
+        </Typography>
+      </Grid>
+    );
+    return (
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+          Speed Governor
+        </Typography>
+        <Grid container spacing={1}>
+          {gov.nebsam && renderBlock('Nebsam', gov.nebsam)}
+          {gov.mockMombasa && renderBlock('Mock Mombasa', gov.mockMombasa)}
+          {gov.sinotrack && renderBlock('Sinotrack', gov.sinotrack)}
+        </Grid>
+      </Box>
+    );
+  };
+
+  const renderOfficeAgentDetails = (label, block) => {
+    if (!block) return null;
+    return (
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+          {label}
+        </Typography>
+        <Typography variant="caption" display="block">
+          Office Installs: {block.officeInstall || 0}
+        </Typography>
+        <Typography variant="caption" display="block">
+          Agent Installs: {block.agentInstall || 0}
+        </Typography>
+        <Typography variant="caption" display="block">
+          Office Renewals: {block.officeRenewal || 0}
+        </Typography>
+        <Typography variant="caption" display="block">
+          Offline: {block.offline || 0}
+        </Typography>
+        <Typography variant="caption" display="block">
+          Checkups: {block.checkups || 0}
+        </Typography>
+      </Box>
+    );
+  };
+
+  const renderRadioDetails = (radio) => {
+    if (!radio) return null;
+    return (
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+          Radio
+        </Typography>
+        <Typography variant="caption" display="block">
+          Office Sales: {radio.officeSale || 0}
+        </Typography>
+        <Typography variant="caption" display="block">
+          Agent Sales: {radio.agentSale || 0}
+        </Typography>
+        <Typography variant="caption" display="block">
+          Office Renewals: {radio.officeRenewal || 0}
+        </Typography>
+      </Box>
+    );
+  };
+
+  const renderCarAlarmsDetails = (carAlarms) => {
+    if (!carAlarms) return null;
+    return (
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+          Car Alarms
+        </Typography>
+        <Typography variant="caption" display="block">
+          Hybrid Alarm Installs: {carAlarms.hybridAlarmInstall || 0}
+        </Typography>
+        <Typography variant="caption" display="block">
+          Hybrid Alarm Renewals: {carAlarms.hybridAlarmRenewal || 0}
+        </Typography>
+      </Box>
+    );
+  };
+
   if (loading) return <Loader />;
 
   return (
@@ -351,7 +535,12 @@ const Dashboard = () => {
           <Typography variant="subtitle1" sx={{ mr: 2 }}>
             {user && user.name}
           </Typography>
-          <IconButton color="inherit" edge="end" title="Logout" onClick={handleLogout}>
+          <IconButton
+            color="inherit"
+            edge="end"
+            title="Logout"
+            onClick={handleLogout}
+          >
             <LogoutIcon />
           </IconButton>
         </Toolbar>
@@ -376,7 +565,7 @@ const Dashboard = () => {
             mr: 1,
           }}
         >
-         Welcome to Nebsam Task Manager
+          Welcome to Nebsam Task Manager
         </Typography>
       </Box>
 
@@ -503,9 +692,7 @@ const Dashboard = () => {
                         <td style={{ padding: 8 }}>
                           {r.showroomId?.name || '—'}
                         </td>
-                        <td style={{ padding: 8 }}>
-                          {r.notes || '—'}
-                        </td>
+                        <td style={{ padding: 8 }}>{r.notes || '—'}</td>
                         <td style={{ padding: 8 }}>
                           <Button
                             size="small"
@@ -524,33 +711,41 @@ const Dashboard = () => {
                         </td>
                       </tr>
                       <tr>
-                        <td colSpan={6} style={{ padding: 0, borderBottom: '1px solid #eee' }}>
-                          <Collapse in={expandedReportId === r._id} timeout="auto" unmountOnExit>
+                        <td
+                          colSpan={6}
+                          style={{
+                            padding: 0,
+                            borderBottom: '1px solid #eee',
+                          }}
+                        >
+                          <Collapse
+                            in={expandedReportId === r._id}
+                            timeout="auto"
+                            unmountOnExit
+                          >
                             <Box sx={{ p: 2, bgcolor: '#f7f9ff' }}>
-                              <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                                Raw Metrics (per department type)
-                              </Typography>
-                              <pre
-                                style={{
-                                  margin: 0,
-                                  fontSize: 12,
-                                  whiteSpace: 'pre-wrap',
-                                  wordBreak: 'break-word',
-                                }}
-                              >
-                                {JSON.stringify(
-                                  {
-                                    tracking: r.tracking,
-                                    speedGovernor: r.speedGovernor,
-                                    radio: r.radio,
-                                    fuel: r.fuel,
-                                    vehicleTelematics: r.vehicleTelematics,
-                                    online: r.online,
-                                  },
-                                  null,
-                                  2
+                              {renderTrackingDetails(r.tracking)}
+                              {renderGovDetails(r.speedGovernor)}
+                              {renderRadioDetails(r.radio)}
+                              {renderOfficeAgentDetails('Fuel', r.fuel)}
+                              {renderOfficeAgentDetails(
+                                'Vehicle Telematics',
+                                r.vehicleTelematics
+                              )}
+                              {renderCarAlarmsDetails(r.carAlarms)}
+                              {!r.tracking &&
+                                !r.speedGovernor &&
+                                !r.radio &&
+                                !r.fuel &&
+                                !r.vehicleTelematics &&
+                                !r.carAlarms && (
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                  >
+                                    No metrics recorded for this report.
+                                  </Typography>
                                 )}
-                              </pre>
                             </Box>
                           </Collapse>
                         </td>
@@ -559,7 +754,10 @@ const Dashboard = () => {
                   ))}
                   {myReports.length === 0 && (
                     <tr>
-                      <td colSpan={6} style={{ padding: 16, textAlign: 'center' }}>
+                      <td
+                        colSpan={6}
+                        style={{ padding: 16, textAlign: 'center' }}
+                      >
                         No reports found for the selected filters.
                       </td>
                     </tr>
@@ -658,7 +856,9 @@ const Dashboard = () => {
                   ))}
                 </Stack>
                 {totalMemoPages > 1 && (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                  <Box
+                    sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}
+                  >
                     <Pagination
                       count={totalMemoPages}
                       page={currentMemosPage}
@@ -679,7 +879,12 @@ const Dashboard = () => {
             {/* Filter tasks by date */}
             <Paper elevation={1} sx={{ p: 2, mb: 2, borderRadius: 2 }}>
               <Box
-                sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  flexWrap: 'wrap',
+                }}
               >
                 <Typography variant="body1" sx={{ fontWeight: 500 }}>
                   Filter tasks by Date:
@@ -724,7 +929,11 @@ const Dashboard = () => {
                 {visibleTasks.length === 0 && (
                   <Grid item xs={12}>
                     <Paper
-                      sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}
+                      sx={{
+                        p: 4,
+                        textAlign: 'center',
+                        color: 'text.secondary',
+                      }}
                     >
                       No {taskTab === 'pending' ? 'pending' : 'done'} tasks found for
                       the selected date.

@@ -1,7 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Box, TextField, Button, FormControl, InputLabel, Select, MenuItem,
-  Grid, Typography, Divider, Stack, Accordion, AccordionSummary, AccordionDetails
+  Box,
+  TextField,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid,
+  Typography,
+  Divider,
+  Stack,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
@@ -18,9 +30,28 @@ const defaultMetricsByCode = {
     inactive: 0,
   },
   GOV: {
-    nebsam: { officeInstall: 0, agentInstall: 0, officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 },
-    mockMombasa: { officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 },
-    sinotrack: { officeInstall: 0, agentInstall: 0, officeRenewal: 0, agentRenewal: 0, offline: 0, checkups: 0 },
+    nebsam: {
+      officeInstall: 0,
+      agentInstall: 0,
+      officeRenewal: 0,
+      agentRenewal: 0,
+      offline: 0,
+      checkups: 0,
+    },
+    mockMombasa: {
+      officeRenewal: 0,
+      agentRenewal: 0,
+      offline: 0,
+      checkups: 0,
+    },
+    sinotrack: {
+      officeInstall: 0,
+      agentInstall: 0,
+      officeRenewal: 0,
+      agentRenewal: 0,
+      offline: 0,
+      checkups: 0,
+    },
   },
   RADIO: {
     officeSale: 0,
@@ -41,9 +72,9 @@ const defaultMetricsByCode = {
     offline: 0,
     checkups: 0,
   },
-  ONLINE: {
-    installs: { bluetooth: 0, hybrid: 0, comprehensive: 0, hybridAlarm: 0 },
-    renewals: { bluetooth: 0, hybrid: 0, comprehensive: 0, hybridAlarm: 0 },
+  CARLRM: {
+    hybridAlarmInstall: 0,
+    hybridAlarmRenewal: 0,
   },
 };
 
@@ -156,36 +187,120 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
     );
   };
 
-  const renderOnline = () => {
+  const renderTracking = () => {
     const current = ensureMetrics() || {};
-    const fields = [
-      { label: 'Installs - Bluetooth', path: 'installs.bluetooth' },
-      { label: 'Installs - Hybrid', path: 'installs.hybrid' },
-      { label: 'Installs - Comprehensive', path: 'installs.comprehensive' },
-      { label: 'Installs - Hybrid Alarm', path: 'installs.hybridAlarm' },
-      { label: 'Renewals - Bluetooth', path: 'renewals.bluetooth' },
-      { label: 'Renewals - Hybrid', path: 'renewals.hybrid' },
-      { label: 'Renewals - Comprehensive', path: 'renewals.comprehensive' },
-      { label: 'Renewals - Hybrid Alarm', path: 'renewals.hybridAlarm' },
+    const gadgets = [
+      {
+        label: 'Tracker 1',
+        installKey: 'tracker1Install',
+        renewalKey: 'tracker1Renewal',
+      },
+      {
+        label: 'Tracker 2',
+        installKey: 'tracker2Install',
+        renewalKey: 'tracker2Renewal',
+      },
+      {
+        label: 'Magnetic',
+        installKey: 'magneticInstall',
+        renewalKey: 'magneticRenewal',
+      },
     ];
+
     return (
-      <Grid container spacing={1.5}>
-        {fields.map((f) => {
-          const [k1, k2] = f.path.split('.');
-          return (
-            <Grid item xs={6} sm={3} key={f.path}>
+      <Stack spacing={2}>
+        {/* Gadget installs/renewals */}
+        <Box>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+            Gadget Installs & Renewals
+          </Typography>
+          <Grid container spacing={1.5}>
+            <Grid item xs={12} sm={4}>
+              <Typography variant="caption" color="text.secondary">
+                Gadget
+              </Typography>
+            </Grid>
+            <Grid item xs={6} sm={4}>
+              <Typography variant="caption" color="text.secondary">
+                Installs
+              </Typography>
+            </Grid>
+            <Grid item xs={6} sm={4}>
+              <Typography variant="caption" color="text.secondary">
+                Renewals
+              </Typography>
+            </Grid>
+            {gadgets.map((g) => (
+              <React.Fragment key={g.label}>
+                <Grid item xs={12} sm={4}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {g.label}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6} sm={4}>
+                  <TextField
+                    type="number"
+                    label="Installs"
+                    value={current[g.installKey] ?? 0}
+                    onChange={(e) => setMetric(g.installKey, e.target.value)}
+                    fullWidth
+                    size="small"
+                  />
+                </Grid>
+                <Grid item xs={6} sm={4}>
+                  <TextField
+                    type="number"
+                    label="Renewals"
+                    value={current[g.renewalKey] ?? 0}
+                    onChange={(e) => setMetric(g.renewalKey, e.target.value)}
+                    fullWidth
+                    size="small"
+                  />
+                </Grid>
+              </React.Fragment>
+            ))}
+          </Grid>
+        </Box>
+
+        {/* Totals / status section */}
+        <Box>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, mt: 1 }}>
+            Status Totals
+          </Typography>
+          <Grid container spacing={1.5}>
+            <Grid item xs={12} sm={4}>
               <TextField
-                label={f.label}
+                label="Offline Vehicles"
                 type="number"
-                value={current?.[k1]?.[k2] ?? 0}
-                onChange={(e) => setMetric(f.path, e.target.value)}
+                value={current.offlineVehicles ?? 0}
+                onChange={(e) => setMetric('offlineVehicles', e.target.value)}
                 fullWidth
                 size="small"
               />
             </Grid>
-          );
-        })}
-      </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                label="Expired"
+                type="number"
+                value={current.expired ?? 0}
+                onChange={(e) => setMetric('expired', e.target.value)}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                label="Inactive"
+                type="number"
+                value={current.inactive ?? 0}
+                onChange={(e) => setMetric('inactive', e.target.value)}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+          </Grid>
+        </Box>
+      </Stack>
     );
   };
 
@@ -193,32 +308,7 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
     const current = ensureMetrics();
     switch (deptCode) {
       case 'TRACK':
-        return (
-          <Grid container spacing={1.5}>
-            {[
-              'offlineVehicles',
-              'tracker1Install',
-              'tracker1Renewal',
-              'tracker2Install',
-              'tracker2Renewal',
-              'magneticInstall',
-              'magneticRenewal',
-              'expired',
-              'inactive',
-            ].map((f) => (
-              <Grid item xs={6} sm={4} key={f}>
-                <TextField
-                  label={f}
-                  type="number"
-                  value={current[f] ?? 0}
-                  onChange={(e) => setMetric(f, e.target.value)}
-                  fullWidth
-                  size="small"
-                />
-              </Grid>
-            ))}
-          </Grid>
-        );
+        return renderTracking();
       case 'GOV':
         return (
           <Stack spacing={1.5}>
@@ -266,8 +356,31 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
       case 'FUEL':
       case 'VTEL':
         return renderOfficeAgent();
-      case 'ONLINE':
-        return renderOnline();
+      case 'CARLRM':
+        return (
+          <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
+            <Grid item xs={6} sm={6}>
+              <TextField
+                label="Hybrid Alarm Installs"
+                type="number"
+                value={current.hybridAlarmInstall ?? 0}
+                onChange={(e) => setMetric('hybridAlarmInstall', e.target.value)}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={6} sm={6}>
+              <TextField
+                label="Hybrid Alarm Renewals"
+                type="number"
+                value={current.hybridAlarmRenewal ?? 0}
+                onChange={(e) => setMetric('hybridAlarmRenewal', e.target.value)}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+          </Grid>
+        );
       default:
         return (
           <Typography variant="body2" color="text.secondary">

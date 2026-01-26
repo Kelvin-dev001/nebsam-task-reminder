@@ -14,9 +14,9 @@ function startOfMonth(dt) {
   return new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), 1, 0, 0, 0, 0));
 }
 
-const sumAll = (...paths) => ({ $add: paths.map(p => ({ $ifNull: [p, 0] })) });
+const sumAll = (...paths) => ({ $add: paths.map((p) => ({ $ifNull: [p, 0] })) });
 
-// salesExpr updated to exclude removed fields
+// salesExpr with ONLINE fully removed
 const salesExpr = sumAll(
   '$tracking.tracker1Install',
   '$tracking.tracker1Renewal',
@@ -47,28 +47,19 @@ const salesExpr = sumAll(
 
   '$radio.officeSale',
   '$radio.agentSale',
-  '$radio.officeRenewal', // agentRenewal removed
+  '$radio.officeRenewal',
 
   '$fuel.officeInstall',
   '$fuel.agentInstall',
   '$fuel.officeRenewal',
   '$fuel.offline',
-  '$fuel.checkups', // agentRenewal removed
+  '$fuel.checkups',
 
   '$vehicleTelematics.officeInstall',
   '$vehicleTelematics.agentInstall',
   '$vehicleTelematics.officeRenewal',
   '$vehicleTelematics.offline',
-  '$vehicleTelematics.checkups', // agentRenewal removed
-
-  '$online.installs.bluetooth',
-  '$online.installs.hybrid',
-  '$online.installs.comprehensive',
-  '$online.installs.hybridAlarm',
-  '$online.renewals.bluetooth',
-  '$online.renewals.hybrid',
-  '$online.renewals.comprehensive',
-  '$online.renewals.hybridAlarm'
+  '$vehicleTelematics.checkups'
 );
 
 // DAILY
@@ -76,7 +67,8 @@ router.get('/daily', isAuthenticated, isSuperuser, async (req, res) => {
   const { startDate, endDate, departmentId, showroomId } = req.query;
   const match = {};
   if (startDate) match.reportDate = { $gte: normalizeDate(startDate) };
-  if (endDate) match.reportDate = { ...(match.reportDate || {}), $lte: normalizeDate(endDate) };
+  if (endDate)
+    match.reportDate = { ...(match.reportDate || {}), $lte: normalizeDate(endDate) };
   if (departmentId) match.departmentId = departmentId;
   if (showroomId) match.showroomId = showroomId;
 
@@ -100,7 +92,7 @@ router.get('/daily', isAuthenticated, isSuperuser, async (req, res) => {
   }
 });
 
-// TRENDS + KPI
+// TRENDS + KPI (ONLINE fully stripped)
 router.get('/trends', isAuthenticated, isSuperuser, async (req, res) => {
   const { departmentId, showroomId } = req.query;
   const now = new Date();
@@ -126,7 +118,7 @@ router.get('/trends', isAuthenticated, isSuperuser, async (req, res) => {
   const thisMonthSales = await sumWindow(curStart, new Date());
   const lastMonthSales = await sumWindow(prevStart, curStart);
 
-  // keep a recent series (last 45 days) for charts – still returned, though you removed the chart
+  // last 45 days series
   const seriesStart = new Date(now);
   seriesStart.setUTCDate(seriesStart.getUTCDate() - 45);
   const series = await DailyDepartmentReport.aggregate([
@@ -140,7 +132,7 @@ router.get('/trends', isAuthenticated, isSuperuser, async (req, res) => {
     ? ((thisMonthSales - lastMonthSales) / lastMonthSales) * 100
     : null;
 
-  // NEW: KPI aggregation for current month only
+  // KPI aggregation for current month (no ONLINE)
   const kpiAgg = await DailyDepartmentReport.aggregate([
     { $match: { ...baseMatch, reportDate: { $gte: curStart, $lt: now } } },
     {
@@ -200,28 +192,6 @@ router.get('/trends', isAuthenticated, isSuperuser, async (req, res) => {
               { $ifNull: ['$tracking.tracker1Install', 0] },
               { $ifNull: ['$tracking.tracker2Install', 0] },
               { $ifNull: ['$tracking.magneticInstall', 0] },
-            ],
-          },
-        },
-
-        // Online
-        onlineInstalls: {
-          $sum: {
-            $add: [
-              { $ifNull: ['$online.installs.bluetooth', 0] },
-              { $ifNull: ['$online.installs.hybrid', 0] },
-              { $ifNull: ['$online.installs.comprehensive', 0] },
-              { $ifNull: ['$online.installs.hybridAlarm', 0] },
-            ],
-          },
-        },
-        onlineRenewals: {
-          $sum: {
-            $add: [
-              { $ifNull: ['$online.renewals.bluetooth', 0] },
-              { $ifNull: ['$online.renewals.hybrid', 0] },
-              { $ifNull: ['$online.renewals.comprehensive', 0] },
-              { $ifNull: ['$online.renewals.hybridAlarm', 0] },
             ],
           },
         },
@@ -288,13 +258,11 @@ router.get('/trends', isAuthenticated, isSuperuser, async (req, res) => {
       trackingInstalls: k.trackingInstalls || 0,
       trackingTopShowroom: leader?.showroomName || '—',
       trackingTopShowroomInstalls: leader?.installs || 0,
-      onlineInstalls: k.onlineInstalls || 0,
-      onlineRenewals: k.onlineRenewals || 0,
     },
   });
 });
 
-// SUBMISSION STATUS
+// SUBMISSION STATUS (unchanged)
 router.get('/submission-status', isAuthenticated, isSuperuser, async (req, res) => {
   const { date } = req.query;
   const day = new Date(date || new Date());
@@ -316,7 +284,7 @@ router.get('/submission-status', isAuthenticated, isSuperuser, async (req, res) 
   });
 });
 
-// MONTHLY (existing, unchanged)
+// MONTHLY (ONLINE fully stripped)
 router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
   try {
     const today = new Date();
@@ -328,6 +296,7 @@ router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
     const projectActivity = {
       reportDate: 1,
       deptCode: { $arrayElemAt: ['$dept.code', 0] },
+
       trackingInstalls: sumAll(
         '$tracking.tracker1Install',
         '$tracking.tracker2Install',
@@ -339,6 +308,7 @@ router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
         '$tracking.magneticRenewal'
       ),
       trackingOffline: { $ifNull: ['$tracking.offlineVehicles', 0] },
+
       govInstalls: sumAll(
         '$speedGovernor.nebsam.officeInstall',
         '$speedGovernor.nebsam.agentInstall',
@@ -363,12 +333,15 @@ router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
         '$speedGovernor.mockMombasa.checkups',
         '$speedGovernor.sinotrack.checkups'
       ),
+
       radioSales: sumAll('$radio.officeSale', '$radio.agentSale'),
       radioRenewals: sumAll('$radio.officeRenewal'),
+
       fuelInstalls: sumAll('$fuel.officeInstall', '$fuel.agentInstall'),
       fuelRenewals: sumAll('$fuel.officeRenewal'),
       fuelOffline: { $ifNull: ['$fuel.offline', 0] },
       fuelCheckups: { $ifNull: ['$fuel.checkups', 0] },
+
       vtelInstalls: sumAll(
         '$vehicleTelematics.officeInstall',
         '$vehicleTelematics.agentInstall'
@@ -376,18 +349,6 @@ router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
       vtelRenewals: sumAll('$vehicleTelematics.officeRenewal'),
       vtelOffline: { $ifNull: ['$vehicleTelematics.offline', 0] },
       vtelCheckups: { $ifNull: ['$vehicleTelematics.checkups', 0] },
-      onlineInstalls: sumAll(
-        '$online.installs.bluetooth',
-        '$online.installs.hybrid',
-        '$online.installs.comprehensive',
-        '$online.installs.hybridAlarm'
-      ),
-      onlineRenewals: sumAll(
-        '$online.renewals.bluetooth',
-        '$online.renewals.hybrid',
-        '$online.renewals.comprehensive',
-        '$online.renewals.hybridAlarm'
-      ),
     };
 
     const aggRange = async (start, end) => {
@@ -426,9 +387,6 @@ router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
             vtelRenewals: { $sum: '$vtelRenewals' },
             vtelOffline: { $sum: '$vtelOffline' },
             vtelCheckups: { $sum: '$vtelCheckups' },
-
-            onlineInstalls: { $sum: '$onlineInstalls' },
-            onlineRenewals: { $sum: '$onlineRenewals' },
           },
         },
       ]);
@@ -465,10 +423,6 @@ router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
           offline: get('VTEL', 'vtelOffline'),
           checkups: get('VTEL', 'vtelCheckups'),
         },
-        online: {
-          installs: get('ONLINE', 'onlineInstalls'),
-          renewals: get('ONLINE', 'onlineRenewals'),
-        },
       };
     };
 
@@ -484,7 +438,7 @@ router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
   }
 });
 
-// MONTHLY-SERIES (CEO dashboard) – unchanged from your latest version
+// MONTHLY-SERIES (CEO dashboard) – ONLINE fully stripped
 router.get('/monthly-series', isAuthenticated, isSuperuser, async (req, res) => {
   const months = Math.min(Math.max(parseInt(req.query.months || '6', 10), 1), 24);
   const now = new Date();
@@ -513,6 +467,7 @@ router.get('/monthly-series', isAuthenticated, isSuperuser, async (req, res) => 
       $project: {
         month: monthKey,
         deptCode: { $arrayElemAt: ['$dept.code', 0] },
+
         // GOV
         nebsamOfficeInst: '$speedGovernor.nebsam.officeInstall',
         nebsamAgentInst: '$speedGovernor.nebsam.agentInstall',
@@ -560,16 +515,6 @@ router.get('/monthly-series', isAuthenticated, isSuperuser, async (req, res) => 
         t2Ren: '$tracking.tracker2Renewal',
         magInst: '$tracking.magneticInstall',
         magRen: '$tracking.magneticRenewal',
-
-        // ONLINE
-        onInstBt: '$online.installs.bluetooth',
-        onInstHy: '$online.installs.hybrid',
-        onInstCo: '$online.installs.comprehensive',
-        onInstHa: '$online.installs.hybridAlarm',
-        onRenBt: '$online.renewals.bluetooth',
-        onRenHy: '$online.renewals.hybrid',
-        onRenCo: '$online.renewals.comprehensive',
-        onRenHa: '$online.renewals.hybridAlarm',
       },
     },
     {
@@ -623,16 +568,6 @@ router.get('/monthly-series', isAuthenticated, isSuperuser, async (req, res) => 
         t2Ren: { $sum: { $ifNull: ['$t2Ren', 0] } },
         magInst: { $sum: { $ifNull: ['$magInst', 0] } },
         magRen: { $sum: { $ifNull: ['$magRen', 0] } },
-
-        // ONLINE
-        onInstBt: { $sum: { $ifNull: ['$onInstBt', 0] } },
-        onInstHy: { $sum: { $ifNull: ['$onInstHy', 0] } },
-        onInstCo: { $sum: { $ifNull: ['$onInstCo', 0] } },
-        onInstHa: { $sum: { $ifNull: ['$onInstHa', 0] } },
-        onRenBt: { $sum: { $ifNull: ['$onRenBt', 0] } },
-        onRenHy: { $sum: { $ifNull: ['$onRenHy', 0] } },
-        onRenCo: { $sum: { $ifNull: ['$onRenCo', 0] } },
-        onRenHa: { $sum: { $ifNull: ['$onRenHa', 0] } },
       },
     },
     {
@@ -667,6 +602,7 @@ router.get('/monthly-series', isAuthenticated, isSuperuser, async (req, res) => 
         fuelOfficeRen: 1,
         fuelOffline: 1,
         fuelCheck: 1,
+
         vtelOfficeInst: 1,
         vtelAgentInst: 1,
         vtelOfficeRen: 1,
@@ -680,15 +616,6 @@ router.get('/monthly-series', isAuthenticated, isSuperuser, async (req, res) => 
         t2Ren: 1,
         magInst: 1,
         magRen: 1,
-
-        onInstBt: 1,
-        onInstHy: 1,
-        onInstCo: 1,
-        onInstHa: 1,
-        onRenBt: 1,
-        onRenHy: 1,
-        onRenCo: 1,
-        onRenHa: 1,
       },
     },
     { $sort: { month: 1 } },
@@ -798,27 +725,6 @@ router.get('/monthly-series', isAuthenticated, isSuperuser, async (req, res) => 
         magneticInst: 0,
         magneticRen: 0,
         offline: 0,
-      })),
-    online:
-      fill(['ONLINE'], (row) => ({
-        instBt: row?.onInstBt || 0,
-        instHy: row?.onInstHy || 0,
-        instCo: row?.onInstCo || 0,
-        instHa: row?.onInstHa || 0,
-        renBt: row?.onRenBt || 0,
-        renHy: row?.onRenHy || 0,
-        renCo: row?.onRenCo || 0,
-        renHa: row?.onRenHa || 0,
-      }))[0]?.series ||
-      monthLabels.map(() => ({
-        instBt: 0,
-        instHy: 0,
-        instCo: 0,
-        instHa: 0,
-        renBt: 0,
-        renHy: 0,
-        renCo: 0,
-        renHa: 0,
       })),
   };
 

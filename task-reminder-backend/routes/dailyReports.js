@@ -54,7 +54,8 @@ router.post('/reports', isAuthenticated, async (req, res) => {
       radio: undefined,
       fuel: undefined,
       vehicleTelematics: undefined,
-      online: undefined,
+      online: undefined, // legacy; we don't write new ONLINE data
+      carAlarms: undefined,
     };
 
     switch (dept.code) {
@@ -83,21 +84,38 @@ router.post('/reports', isAuthenticated, async (req, res) => {
         update.tracking = m || {};
         break;
       }
+
       case 'GOV':
         update.speedGovernor = metrics || {};
         break;
+
       case 'RADIO':
         update.radio = metrics || {};
         break;
+
       case 'FUEL':
         update.fuel = metrics || {};
         break;
+
       case 'VTEL':
         update.vehicleTelematics = metrics || {};
         break;
-      case 'ONLINE':
-        update.online = metrics || {};
+
+      case 'CARLRM': {
+        // Car Alarms – metrics should match DailyDepartmentReport.carAlarms schema
+        update.carAlarms = metrics || {};
+        // CARLRM is not per showroom (unless you choose to, then we keep showroomId behavior)
+        update.showroomId = showroomId || null;
         break;
+      }
+
+      // We no longer support writing ONLINE department reports
+      case 'ONLINE':
+        return res.status(400).json({
+          error:
+            'ONLINE department is deprecated. Please use TRACK and CARLRM instead.',
+        });
+
       default:
         return res.status(400).json({ error: 'Unsupported department code' });
     }
@@ -121,12 +139,7 @@ router.post('/reports', isAuthenticated, async (req, res) => {
  */
 router.get('/reports/my', isAuthenticated, async (req, res) => {
   try {
-    const {
-      startDate,
-      endDate,
-      page = 1,
-      limit = 10,
-    } = req.query;
+    const { startDate, endDate, page = 1, limit = 10 } = req.query;
 
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.max(parseInt(limit, 10) || 10, 1);
@@ -168,7 +181,6 @@ router.get('/reports/my', isAuthenticated, async (req, res) => {
  */
 router.delete('/reports/cleanup-seed-data', isAuthenticated, async (req, res) => {
   try {
-    // You can restrict this route to superuser/admin if you want.
     const result = await DailyDepartmentReport.deleteMany({ notes: /SAMPLE_DATA/ });
     res.json({ message: `Deleted ${result.deletedCount} seed reports.` });
   } catch (err) {
