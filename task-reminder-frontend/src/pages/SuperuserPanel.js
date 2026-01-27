@@ -7,7 +7,7 @@ import {
   IconButton, TextField, MenuItem, Select, InputLabel, FormControl, Grid,
   Divider, useMediaQuery, Snackbar, Alert, Dialog, DialogTitle, DialogContent,
   DialogActions, Stack, Table, TableBody, TableCell, TableHead, TableRow, Chip,
-  Switch, FormControlLabel
+  Switch, FormControlLabel, Avatar
 } from '@mui/material';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -15,6 +15,9 @@ import EditIcon from '@mui/icons-material/Edit';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import LogoutIcon from '@mui/icons-material/Logout';
+import GroupIcon from '@mui/icons-material/Group';
+import ApartmentIcon from '@mui/icons-material/Apartment';
+import StorefrontIcon from '@mui/icons-material/Storefront';
 import logo from '../assets/logo.png';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
@@ -271,7 +274,9 @@ const SuperuserPanel = () => {
     e.preventDefault();
     try {
       if (editingShowroom) {
-        await api.put(`/showrooms/${editingShowroom._id}`, showroomForm, { withCredentials: true });
+        await api.put(`/showrooms/${editingShowroom._id}`, showroomForm, {
+          withCredentials: true,
+        });
         showToast(true, 'Showroom updated');
       } else {
         await api.post('/showrooms', showroomForm, { withCredentials: true });
@@ -561,383 +566,531 @@ const SuperuserPanel = () => {
 
         {/* Users Tab (0) */}
         {tab === 0 && (
-          <Paper
-            elevation={3}
-            sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-              {editingUserId ? 'Edit User' : 'Create User'}
-            </Typography>
-            <Box
-              component="form"
-              onSubmit={handleCreateOrUpdateUser}
-              sx={{
-                display: 'flex',
-                gap: 2,
-                flexDirection: isMobile ? 'column' : 'row',
-                flexWrap: 'wrap',
-              }}
+          <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
+            <Stack
+              direction={isMobile ? 'column' : 'row'}
+              spacing={3}
+              alignItems={isMobile ? 'stretch' : 'flex-start'}
+              justifyContent="space-between"
             >
-              <TextField
-                label="Full Name"
-                value={userForm.name}
-                onChange={(e) =>
-                  setUserForm({ ...userForm, name: e.target.value })
-                }
-                required
-                fullWidth
-              />
-              <TextField
-                label="Email"
-                type="email"
-                value={userForm.email}
-                onChange={(e) =>
-                  setUserForm({ ...userForm, email: e.target.value })
-                }
-                required
-                fullWidth
-              />
-              <TextField
-                label="Phone (E.164, e.g., +15551234567)"
-                value={userForm.phone}
-                onChange={(e) =>
-                  setUserForm({ ...userForm, phone: e.target.value })
-                }
-                required
-                fullWidth
-              />
-              <FormControl sx={{ minWidth: 160 }}>
-                <InputLabel>Role</InputLabel>
-                <Select
-                  value={userForm.role}
-                  label="Role"
-                  onChange={(e) =>
-                    setUserForm({ ...userForm, role: e.target.value })
-                  }
-                >
-                  <MenuItem value="user">User</MenuItem>
-                  <MenuItem value="admin">Admin</MenuItem>
-                  <MenuItem value="superuser">Superuser</MenuItem>
-                </Select>
-              </FormControl>
-              <Button
-                type="submit"
-                variant="contained"
-                startIcon={<AddCircleIcon />}
-              >
-                {editingUserId ? 'Update User' : 'Create User'}
-              </Button>
-              {editingUserId && (
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  onClick={() => {
-                    setEditingUserId(null);
-                    setUserForm({
-                      name: '',
-                      email: '',
-                      phone: '',
-                      role: 'user',
-                    });
+              {/* Left: form */}
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                  {editingUserId ? 'Edit User' : 'Create User'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Quickly onboard staff and manage access roles.
+                </Typography>
+                <Box
+                  component="form"
+                  onSubmit={handleCreateOrUpdateUser}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
                   }}
                 >
-                  Cancel Edit
-                </Button>
-              )}
-            </Box>
-            <Divider sx={{ my: 3 }} />
-            <Grid container spacing={2}>
-              {Array.isArray(users) &&
-                users.map((u) => (
-                  <Grid item xs={12} sm={6} md={4} key={u._id}>
-                    <Paper
-                      sx={{
-                        p: 2,
-                        borderRadius: 2,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
+                  <TextField
+                    label="Full Name"
+                    value={userForm.name}
+                    onChange={(e) =>
+                      setUserForm({ ...userForm, name: e.target.value })
+                    }
+                    required
+                    fullWidth
+                  />
+                  <TextField
+                    label="Email"
+                    type="email"
+                    value={userForm.email}
+                    onChange={(e) =>
+                      setUserForm({ ...userForm, email: e.target.value })
+                    }
+                    required
+                    fullWidth
+                  />
+                  <TextField
+                    label="Phone (E.164, e.g., +2547…)"
+                    value={userForm.phone}
+                    onChange={(e) =>
+                      setUserForm({ ...userForm, phone: e.target.value })
+                    }
+                    required
+                    fullWidth
+                  />
+                  <FormControl fullWidth>
+                    <InputLabel>Role</InputLabel>
+                    <Select
+                      value={userForm.role}
+                      label="Role"
+                      onChange={(e) =>
+                        setUserForm({ ...userForm, role: e.target.value })
+                      }
                     >
-                      <Box>
-                        <Typography sx={{ fontWeight: 600 }}>
-                          {u.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {u.email}
-                        </Typography>
-                        <Typography variant="caption" color="secondary">
-                          {u.role}
-                        </Typography>
-                        {u.requiresPasswordChange && (
-                          <Typography
-                            variant="caption"
-                            color="error"
-                            sx={{ display: 'block' }}
-                          >
-                            Requires password change
-                          </Typography>
-                        )}
-                      </Box>
-                      <Box>
-                        <IconButton
-                          color="primary"
-                          onClick={() => {
-                            setEditingUserId(u._id);
-                            setUserForm({
-                              name: u.name,
-                              email: u.email,
-                              phone: '',
-                              role: u.role,
-                            });
-                          }}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          color="error"
-                          onClick={() => handleDeleteUser(u._id)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Box>
-                    </Paper>
-                  </Grid>
-                ))}
-              {users.length === 0 && (
-                <Grid item xs={12}>
-                  <Typography>No users found.</Typography>
-                </Grid>
-              )}
-            </Grid>
+                      <MenuItem value="user">User</MenuItem>
+                      <MenuItem value="admin">Admin</MenuItem>
+                      <MenuItem value="superuser">Superuser</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      startIcon={<AddCircleIcon />}
+                    >
+                      {editingUserId ? 'Update User' : 'Create User'}
+                    </Button>
+                    {editingUserId && (
+                      <Button
+                        variant="outlined"
+                        color="secondary"
+                        onClick={() => {
+                          setEditingUserId(null);
+                          setUserForm({
+                            name: '',
+                            email: '',
+                            phone: '',
+                            role: 'user',
+                          });
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </Stack>
+                </Box>
+              </Box>
+
+              {/* Right: neat list */}
+              <Box sx={{ flex: 1.4 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+                  Existing Users
+                </Typography>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    borderRadius: 2,
+                    maxHeight: 400,
+                    overflow: 'auto',
+                  }}
+                >
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>User</TableCell>
+                        <TableCell>Role</TableCell>
+                        <TableCell align="right">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {Array.isArray(users) && users.length > 0 ? (
+                        users.map((u) => (
+                          <TableRow key={u._id} hover>
+                            <TableCell>
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                <Avatar sx={{ width: 32, height: 32 }}>
+                                  {(u.name || u.email || '?')[0].toUpperCase()}
+                                </Avatar>
+                                <Box>
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {u.name}
+                                  </Typography>
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ display: 'block' }}
+                                  >
+                                    {u.email}
+                                  </Typography>
+                                  {u.requiresPasswordChange && (
+                                    <Typography
+                                      variant="caption"
+                                      color="error"
+                                      sx={{ display: 'block' }}
+                                    >
+                                      Requires password change
+                                    </Typography>
+                                  )}
+                                </Box>
+                              </Stack>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                size="small"
+                                label={u.role}
+                                color={
+                                  u.role === 'superuser'
+                                    ? 'error'
+                                    : u.role === 'admin'
+                                    ? 'primary'
+                                    : 'default'
+                                }
+                                variant="outlined"
+                              />
+                            </TableCell>
+                            <TableCell align="right">
+                              <IconButton
+                                color="primary"
+                                size="small"
+                                onClick={() => {
+                                  setEditingUserId(u._id);
+                                  setUserForm({
+                                    name: u.name,
+                                    email: u.email,
+                                    phone: '',
+                                    role: u.role,
+                                  });
+                                }}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                color="error"
+                                size="small"
+                                onClick={() => handleDeleteUser(u._id)}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3}>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ py: 1 }}
+                            >
+                              No users found.
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </Paper>
+              </Box>
+            </Stack>
           </Paper>
         )}
 
         {/* Departments Tab (1) */}
         {tab === 1 && (
-          <Paper
-            elevation={3}
-            sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-              Manage Departments
-            </Typography>
-            <Box
-              component="form"
-              onSubmit={handleAddDept}
-              sx={{
-                display: 'flex',
-                gap: 2,
-                flexDirection: isMobile ? 'column' : 'row',
-                flexWrap: 'wrap',
-              }}
+          <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
+            <Stack
+              direction={isMobile ? 'column' : 'row'}
+              spacing={3}
+              alignItems={isMobile ? 'stretch' : 'flex-start'}
+              justifyContent="space-between"
             >
-              <TextField
-                label="Department Name"
-                value={newDept.name}
-                onChange={(e) =>
-                  setNewDept({ ...newDept, name: e.target.value })
-                }
-                required
-                fullWidth
-              />
-              <TextField
-                label="Department Code (e.g., TRACK, GOV, RADIO, FUEL, VTEL, ONLINE)"
-                value={newDept.code}
-                onChange={(e) =>
-                  setNewDept({ ...newDept, code: e.target.value })
-                }
-                required
-                fullWidth
-              />
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                startIcon={<AddCircleIcon />}
-              >
-                Add Department
-              </Button>
-            </Box>
-            <Divider sx={{ my: 3 }} />
-            <Grid container spacing={2}>
-              {Array.isArray(departments) &&
-                departments.map((dept) => (
-                  <Grid item xs={12} sm={6} md={4} key={dept._id}>
-                    <Paper
-                      sx={{
-                        p: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        borderRadius: 2,
-                      }}
+              {/* Left: form */}
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                  Manage Departments
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Define operational units like Tracking, Governor, Car Alarms, etc.
+                </Typography>
+                <Box
+                  component="form"
+                  onSubmit={handleAddDept}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
+                  }}
+                >
+                  <TextField
+                    label="Department Name"
+                    value={newDept.name}
+                    onChange={(e) =>
+                      setNewDept({ ...newDept, name: e.target.value })
+                    }
+                    required
+                    fullWidth
+                  />
+                  <TextField
+                    label="Department Code (e.g., TRACK, GOV, RADIO, FUEL, VTEL, CARLRM)"
+                    value={newDept.code}
+                    onChange={(e) =>
+                      setNewDept({ ...newDept, code: e.target.value })
+                    }
+                    required
+                    fullWidth
+                  />
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      color="primary"
+                      startIcon={<AddCircleIcon />}
                     >
-                      <Box>
-                        <Typography fontWeight={600}>{dept.name}</Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                        >
-                          {dept.code}
-                        </Typography>
-                      </Box>
-                      <Box>
-                        <IconButton
-                          color="primary"
-                          onClick={() => setEditingDept({ ...dept })}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          color="error"
-                          onClick={() => handleDeleteDept(dept._id)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Box>
-                    </Paper>
-                  </Grid>
-                ))}
-              {departments.length === 0 && (
-                <Grid item xs={12}>
-                  <Typography>No departments found.</Typography>
-                </Grid>
-              )}
-            </Grid>
+                      Add Department
+                    </Button>
+                  </Stack>
+                </Box>
+              </Box>
+
+              {/* Right: compact list */}
+              <Box sx={{ flex: 1.4 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+                  Existing Departments
+                </Typography>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    borderRadius: 2,
+                    maxHeight: 400,
+                    overflow: 'auto',
+                  }}
+                >
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Department</TableCell>
+                        <TableCell>Code</TableCell>
+                        <TableCell align="right">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {Array.isArray(departments) && departments.length > 0 ? (
+                        departments.map((dept) => (
+                          <TableRow key={dept._id} hover>
+                            <TableCell>
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                <Avatar sx={{ width: 28, height: 28, bgcolor: '#e3f2fd' }}>
+                                  <ApartmentIcon fontSize="small" />
+                                </Avatar>
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  {dept.name}
+                                </Typography>
+                              </Stack>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                size="small"
+                                label={dept.code}
+                                variant="outlined"
+                                color="primary"
+                              />
+                            </TableCell>
+                            <TableCell align="right">
+                              <IconButton
+                                color="primary"
+                                size="small"
+                                onClick={() => setEditingDept({ ...dept })}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                color="error"
+                                size="small"
+                                onClick={() => handleDeleteDept(dept._id)}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3}>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ py: 1 }}
+                            >
+                              No departments found.
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </Paper>
+              </Box>
+            </Stack>
           </Paper>
         )}
 
         {/* Showrooms Tab (2) */}
         {tab === 2 && (
-          <Paper
-            elevation={3}
-            sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-              Manage Showrooms
-            </Typography>
-            <Box
-              component="form"
-              onSubmit={handleCreateOrUpdateShowroom}
-              sx={{
-                display: 'flex',
-                gap: 2,
-                flexDirection: isMobile ? 'column' : 'row',
-                flexWrap: 'wrap',
-                mb: 3,
-              }}
+          <Paper elevation={3} sx={{ p: isMobile ? 2 : 4, mt: 3, borderRadius: 3 }}>
+            <Stack
+              direction={isMobile ? 'column' : 'row'}
+              spacing={3}
+              alignItems={isMobile ? 'stretch' : 'flex-start'}
+              justifyContent="space-between"
             >
-              <TextField
-                label="Showroom Name"
-                value={showroomForm.name}
-                onChange={(e) =>
-                  setShowroomForm({ ...showroomForm, name: e.target.value })
-                }
-                required
-                fullWidth
-              />
-              <TextField
-                label="Code (optional)"
-                value={showroomForm.code}
-                onChange={(e) =>
-                  setShowroomForm({ ...showroomForm, code: e.target.value })
-                }
-                helperText="If empty, code will be generated from name."
-                fullWidth
-              />
-              <FormControl sx={{ minWidth: 160 }}>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={showroomForm.isActive ? 'active' : 'inactive'}
-                  label="Status"
-                  onChange={(e) =>
-                    setShowroomForm({
-                      ...showroomForm,
-                      isActive: e.target.value === 'active',
-                    })
-                  }
-                >
-                  <MenuItem value="active">Active</MenuItem>
-                  <MenuItem value="inactive">Inactive</MenuItem>
-                </Select>
-              </FormControl>
-              <Button
-                type="submit"
-                variant="contained"
-                startIcon={<AddCircleIcon />}
-              >
-                {editingShowroom ? 'Update Showroom' : 'Create Showroom'}
-              </Button>
-              {editingShowroom && (
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  onClick={() => {
-                    setEditingShowroom(null);
-                    setShowroomForm({ name: '', code: '', isActive: true });
+              {/* Left: form */}
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                  Manage Showrooms
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Keep your active vs inactive showrooms organised.
+                </Typography>
+                <Box
+                  component="form"
+                  onSubmit={handleCreateOrUpdateShowroom}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
+                    mb: 1,
                   }}
                 >
-                  Cancel Edit
-                </Button>
-              )}
-            </Box>
-
-            <Grid container spacing={2}>
-              {showrooms.map((s) => (
-                <Grid item xs={12} sm={6} md={4} key={s._id}>
-                  <Paper
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Box>
-                      <Typography fontWeight={600}>{s.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Code: {s.code}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color={s.isActive ? 'success.main' : 'error.main'}
-                        sx={{ display: 'block' }}
-                      >
-                        {s.isActive ? 'Active' : 'Inactive'}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <IconButton
-                        color="primary"
+                  <TextField
+                    label="Showroom Name"
+                    value={showroomForm.name}
+                    onChange={(e) =>
+                      setShowroomForm({ ...showroomForm, name: e.target.value })
+                    }
+                    required
+                    fullWidth
+                  />
+                  <TextField
+                    label="Code (optional)"
+                    value={showroomForm.code}
+                    onChange={(e) =>
+                      setShowroomForm({ ...showroomForm, code: e.target.value })
+                    }
+                    helperText="If empty, code will be generated from name."
+                    fullWidth
+                  />
+                  <FormControl fullWidth>
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      value={showroomForm.isActive ? 'active' : 'inactive'}
+                      label="Status"
+                      onChange={(e) =>
+                        setShowroomForm({
+                          ...showroomForm,
+                          isActive: e.target.value === 'active',
+                        })
+                      }
+                    >
+                      <MenuItem value="active">Active</MenuItem>
+                      <MenuItem value="inactive">Inactive</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      startIcon={<AddCircleIcon />}
+                    >
+                      {editingShowroom ? 'Update Showroom' : 'Create Showroom'}
+                    </Button>
+                    {editingShowroom && (
+                      <Button
+                        variant="outlined"
+                        color="secondary"
                         onClick={() => {
-                          setEditingShowroom(s);
-                          setShowroomForm({
-                            name: s.name,
-                            code: s.code,
-                            isActive: s.isActive,
-                          });
+                          setEditingShowroom(null);
+                          setShowroomForm({ name: '', code: '', isActive: true });
                         }}
                       >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        color="error"
-                        onClick={() => handleDeleteShowroom(s._id)}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                  </Paper>
-                </Grid>
-              ))}
-              {showrooms.length === 0 && (
-                <Grid item xs={12}>
-                  <Typography>No showrooms found.</Typography>
-                </Grid>
-              )}
-            </Grid>
+                        Cancel
+                      </Button>
+                    )}
+                  </Stack>
+                </Box>
+              </Box>
+
+              {/* Right: grid-like list */}
+              <Box sx={{ flex: 1.4 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+                  Existing Showrooms
+                </Typography>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    borderRadius: 2,
+                    maxHeight: 400,
+                    overflow: 'auto',
+                  }}
+                >
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Showroom</TableCell>
+                        <TableCell>Code</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell align="right">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {showrooms.length > 0 ? (
+                        showrooms.map((s) => (
+                          <TableRow key={s._id} hover>
+                            <TableCell>
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                <Avatar sx={{ width: 28, height: 28, bgcolor: '#f3e5f5' }}>
+                                  <StorefrontIcon fontSize="small" />
+                                </Avatar>
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  {s.name}
+                                </Typography>
+                              </Stack>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="caption" color="text.secondary">
+                                {s.code || '—'}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                size="small"
+                                label={s.isActive ? 'Active' : 'Inactive'}
+                                color={s.isActive ? 'success' : 'default'}
+                                variant={s.isActive ? 'filled' : 'outlined'}
+                              />
+                            </TableCell>
+                            <TableCell align="right">
+                              <IconButton
+                                color="primary"
+                                size="small"
+                                onClick={() => {
+                                  setEditingShowroom(s);
+                                  setShowroomForm({
+                                    name: s.name,
+                                    code: s.code,
+                                    isActive: s.isActive,
+                                  });
+                                }}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                color="error"
+                                size="small"
+                                onClick={() => handleDeleteShowroom(s._id)}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={4}>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ py: 1 }}
+                            >
+                              No showrooms found.
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </Paper>
+              </Box>
+            </Stack>
           </Paper>
         )}
 
@@ -1239,6 +1392,10 @@ const SuperuserPanel = () => {
             </Grid>
           </Paper>
         )}
+
+        {/* Memos Tab (4), Analytics Tab (5), Complaints Tab (6) remain unchanged */}
+        {/* ... keep your existing code for tabs 4, 5, 6 here ... */}
+        {/* I have not modified those to keep this answer focused on Users/Departments/Showrooms. */}
 
         {/* Memos Tab (4) */}
         {tab === 4 && (
@@ -1584,9 +1741,7 @@ const SuperuserPanel = () => {
             type="date"
             label="Deadline"
             value={
-              editingTask?.deadline
-                ? editingTask.deadline.slice(0, 10)
-                : ''
+              editingTask?.deadline ? editingTask.deadline.slice(0, 10) : ''
             }
             onChange={(e) =>
               setEditingTask({
