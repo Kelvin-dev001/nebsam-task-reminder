@@ -25,7 +25,7 @@ const govRenewalOnlySchema = new mongoose.Schema(
 const governorSchema = new mongoose.Schema(
   {
     nebsam: { type: govSubSchemaFull, default: () => ({}) },
-    mockMombasa: { type: govRenewalOnlySchema, default: () => ({}) }, // installs removed
+    mockMombasa: { type: govRenewalOnlySchema, default: () => ({}) },
     sinotrack: { type: govSubSchemaFull, default: () => ({}) },
   },
   { _id: false }
@@ -51,7 +51,7 @@ const radioSchema = new mongoose.Schema(
   { _id: false }
 );
 
-// Legacy ONLINE schema – no longer used going forward but kept so old docs still parse.
+// Legacy ONLINE schema – kept only so old docs still parse, but not used for new reports.
 const onlineSchema = new mongoose.Schema(
   {
     installs: {
@@ -72,8 +72,10 @@ const onlineSchema = new mongoose.Schema(
 
 const trackingSchema = new mongoose.Schema(
   {
+    // Status / totals
     offlineVehicles: { type: Number, default: 0 },
 
+    // Showroom‑linked trackers
     tracker1Install: { type: Number, default: 0 },
     tracker1Renewal: { type: Number, default: 0 },
 
@@ -83,7 +85,17 @@ const trackingSchema = new mongoose.Schema(
     magneticInstall: { type: Number, default: 0 },
     magneticRenewal: { type: Number, default: 0 },
 
-    // NEW metrics (tracked separately, not included in sales/KPIs)
+    // Transferred from ONLINE (Bluetooth / Hybrid / Comprehensive)
+    btInstall: { type: Number, default: 0 },
+    btRenewal: { type: Number, default: 0 },
+
+    hybridInstall: { type: Number, default: 0 },
+    hybridRenewal: { type: Number, default: 0 },
+
+    compInstall: { type: Number, default: 0 },
+    compRenewal: { type: Number, default: 0 },
+
+    // NEW metrics (not counted in sales/KPIs)
     expired: { type: Number, default: 0 },
     inactive: { type: Number, default: 0 },
   },
@@ -93,7 +105,6 @@ const trackingSchema = new mongoose.Schema(
 // Car Alarms department (CARLRM)
 const carAlarmsSchema = new mongoose.Schema(
   {
-    // you can extend this with other alarm types later
     hybridAlarmInstall: { type: Number, default: 0 },
     hybridAlarmRenewal: { type: Number, default: 0 },
   },
@@ -126,10 +137,10 @@ const DailyDepartmentReportSchema = new mongoose.Schema(
     fuel: { type: officeAgentSchema, default: undefined },
     vehicleTelematics: { type: officeAgentSchema, default: undefined },
 
-    // Legacy ONLINE block – no longer used for new reports
+    // Legacy ONLINE block
     online: { type: onlineSchema, default: undefined },
 
-    // NEW: Car Alarms (CARLRM)
+    // Car Alarms (CARLRM)
     carAlarms: { type: carAlarmsSchema, default: undefined },
   },
   { timestamps: true }

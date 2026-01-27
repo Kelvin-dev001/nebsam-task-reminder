@@ -20,12 +20,22 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 const defaultMetricsByCode = {
   TRACK: {
     offlineVehicles: 0,
+
     tracker1Install: 0,
     tracker1Renewal: 0,
     tracker2Install: 0,
     tracker2Renewal: 0,
     magneticInstall: 0,
     magneticRenewal: 0,
+
+    // transferred from ONLINE
+    btInstall: 0,
+    btRenewal: 0,
+    hybridInstall: 0,
+    hybridRenewal: 0,
+    compInstall: 0,
+    compRenewal: 0,
+
     expired: 0,
     inactive: 0,
   },
@@ -205,6 +215,21 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
         installKey: 'magneticInstall',
         renewalKey: 'magneticRenewal',
       },
+      {
+        label: 'Bluetooth Tracker',
+        installKey: 'btInstall',
+        renewalKey: 'btRenewal',
+      },
+      {
+        label: 'Hybrid Tracker',
+        installKey: 'hybridInstall',
+        renewalKey: 'hybridRenewal',
+      },
+      {
+        label: 'Comprehensive Tracker',
+        installKey: 'compInstall',
+        renewalKey: 'compRenewal',
+      },
     ];
 
     return (
@@ -215,6 +240,21 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
             Gadget Installs & Renewals
           </Typography>
           <Grid container spacing={1.5}>
+            <Grid item xs={12} sm={4}>
+              <Typography variant="caption" color="text.secondary">
+                Gadget
+              </Typography>
+            </Grid>
+            <Grid item xs={6} sm={4}>
+              <Typography variant="caption" color="text.secondary">
+                Installs
+              </Typography>
+            </Grid>
+            <Grid item xs={6} sm={4}>
+              <Typography variant="caption" color="text.secondary">
+                Renewals
+              </Typography>
+            </Grid>
             {gadgets.map((g) => (
               <React.Fragment key={g.label}>
                 <Grid item xs={12} sm={4}>

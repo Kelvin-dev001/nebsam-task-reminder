@@ -328,45 +328,87 @@ const Dashboard = () => {
 
   const renderTrackingDetails = (tracking) => {
     if (!tracking) return null;
+
+    const gadgets = [
+      {
+        label: 'Tracker 1',
+        inst: tracking.tracker1Install,
+        ren: tracking.tracker1Renewal,
+      },
+      {
+        label: 'Tracker 2',
+        inst: tracking.tracker2Install,
+        ren: tracking.tracker2Renewal,
+      },
+      {
+        label: 'Magnetic',
+        inst: tracking.magneticInstall,
+        ren: tracking.magneticRenewal,
+      },
+      {
+        label: 'Bluetooth Tracker',
+        inst: tracking.btInstall,
+        ren: tracking.btRenewal,
+      },
+      {
+        label: 'Hybrid Tracker',
+        inst: tracking.hybridInstall,
+        ren: tracking.hybridRenewal,
+      },
+      {
+        label: 'Comprehensive Tracker',
+        inst: tracking.compInstall,
+        ren: tracking.compRenewal,
+      },
+    ];
+
     return (
       <Box sx={{ mb: 2 }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
           Tracking
         </Typography>
+
+        {/* Gadget table */}
+        <Grid container spacing={1} sx={{ mb: 1 }}>
+          <Grid item xs={12} sm={4}>
+            <Typography variant="caption" color="text.secondary">
+              Gadget
+            </Typography>
+          </Grid>
+          <Grid item xs={6} sm={4}>
+            <Typography variant="caption" color="text.secondary">
+              Installs
+            </Typography>
+          </Grid>
+          <Grid item xs={6} sm={4}>
+            <Typography variant="caption" color="text.secondary">
+              Renewals
+            </Typography>
+          </Grid>
+
+          {gadgets.map((g) => (
+            <React.Fragment key={g.label}>
+              <Grid item xs={12} sm={4}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {g.label}
+                </Typography>
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Typography variant="caption" display="block">
+                  {g.inst || 0}
+                </Typography>
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Typography variant="caption" display="block">
+                  {g.ren || 0}
+                </Typography>
+              </Grid>
+            </React.Fragment>
+          ))}
+        </Grid>
+
+        {/* Status totals */}
         <Grid container spacing={1}>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              Tracker 1
-            </Typography>
-            <Typography variant="caption" display="block">
-              Installs: {tracking.tracker1Install || 0}
-            </Typography>
-            <Typography variant="caption" display="block">
-              Renewals: {tracking.tracker1Renewal || 0}
-            </Typography>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              Tracker 2
-            </Typography>
-            <Typography variant="caption" display="block">
-              Installs: {tracking.tracker2Install || 0}
-            </Typography>
-            <Typography variant="caption" display="block">
-              Renewals: {tracking.tracker2Renewal || 0}
-            </Typography>
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              Magnetic
-            </Typography>
-            <Typography variant="caption" display="block">
-              Installs: {tracking.magneticInstall || 0}
-            </Typography>
-            <Typography variant="caption" display="block">
-              Renewals: {tracking.magneticRenewal || 0}
-            </Typography>
-          </Grid>
           <Grid item xs={12} sm={4}>
             <Typography variant="caption" display="block">
               Offline Vehicles: {tracking.offlineVehicles || 0}
