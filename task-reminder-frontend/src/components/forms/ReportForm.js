@@ -236,25 +236,7 @@ const ReportForm = ({ departments = [], showrooms = [], onSubmit }) => {
       <Stack spacing={2}>
         {/* Gadget installs/renewals */}
         <Box>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-            Gadget Installs & Renewals
-          </Typography>
           <Grid container spacing={1.5}>
-            <Grid item xs={12} sm={4}>
-              <Typography variant="caption" color="text.secondary">
-                Gadget
-              </Typography>
-            </Grid>
-            <Grid item xs={6} sm={4}>
-              <Typography variant="caption" color="text.secondary">
-                Installs
-              </Typography>
-            </Grid>
-            <Grid item xs={6} sm={4}>
-              <Typography variant="caption" color="text.secondary">
-                Renewals
-              </Typography>
-            </Grid>
             {gadgets.map((g) => (
               <React.Fragment key={g.label}>
                 <Grid item xs={12} sm={4}>
