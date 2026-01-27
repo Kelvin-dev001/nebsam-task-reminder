@@ -15,7 +15,6 @@ import EditIcon from '@mui/icons-material/Edit';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import LogoutIcon from '@mui/icons-material/Logout';
-import GroupIcon from '@mui/icons-material/Group';
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import logo from '../assets/logo.png';
