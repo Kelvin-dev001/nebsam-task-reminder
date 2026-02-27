@@ -3,12 +3,14 @@ import { AuthContext } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
   Button, TextField, Grid, Box, Typography, Container, Snackbar,
-  Paper, Alert, Link
+  Paper, Alert, Divider
 } from '@mui/material';
 import { ThemeProvider } from '@mui/material/styles';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import ceoTheme from './theme';
 import logo from '../../assets/logo.png';
+// Google OAuth import (see note at bottom)
+import { GoogleLogin } from '@react-oauth/google';
 
 const CeoLoginPage = () => {
   const { ceoLogin } = useContext(AuthContext);
@@ -21,12 +23,13 @@ const CeoLoginPage = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleLogin = async e => {
+  // Manual CEO login (env-based, for your own testing)
+  const handleCeologin = async e => {
     e.preventDefault();
     setLoading(true);
     setSnack({ open: false, message: '', severity: "success" });
     try {
-      await ceoLogin(form.email, form.password);
+      const data = await ceoLogin(form.email, form.password);
       setSnack({ open: true, message: "Welcome, CEO! 👑", severity: "success" });
       setTimeout(() => {
         navigate('/ceo');
@@ -39,6 +42,34 @@ const CeoLoginPage = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Google CEO login
+  const handleGoogleLogin = async (credentialResponse) => {
+    try {
+      const token = credentialResponse.credential;
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/auth/google-ceo`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ token })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Google login failed');
+      // Save to context/localStorage through AuthContext
+      localStorage.setItem('user', JSON.stringify(data.user || {}));
+      localStorage.setItem('token', data.token);
+      setSnack({ open: true, message: "Google Login Success!", severity: "success" });
+      setTimeout(() => {
+        if (data.user?.role === 'ceo') navigate('/ceo');
+        else if (data.user?.role === 'admin') navigate('/admin');
+      }, 900);
+    } catch (err) {
+      setSnack({
+        open: true,
+        message: err.message || 'Google login failed!',
+        severity: "error"
+      });
     }
   };
 
@@ -58,7 +89,8 @@ const CeoLoginPage = () => {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 500 }}>
               Executive access only
             </Typography>
-            <Box component="form" noValidate onSubmit={handleLogin} sx={{ mt: 1 }}>
+            {/* CEO password login */}
+            <Box component="form" noValidate onSubmit={handleCeologin} sx={{ mt: 1 }}>
               <Grid container spacing={2}>
                 <Grid item xs={12}>
                   <TextField
@@ -87,6 +119,12 @@ const CeoLoginPage = () => {
                 {loading ? 'Signing in...' : 'Login'}
               </Button>
             </Box>
+            <Divider sx={{ my: 2 }}>Or</Divider>
+            <GoogleLogin
+              onSuccess={handleGoogleLogin}
+              onError={() => setSnack({ open: true, message: 'Google Auth Failed', severity: 'error' })}
+              useOneTap
+            />
           </Box>
         </Paper>
         <Snackbar
