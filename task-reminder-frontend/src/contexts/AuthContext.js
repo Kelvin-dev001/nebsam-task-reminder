@@ -13,8 +13,10 @@ export const AuthProvider = ({ children }) => {
   const persistAuth = (userObj, tokenStr) => {
     setUser(userObj);
     setToken(tokenStr);
-    localStorage.setItem('user', JSON.stringify(userObj));
-    localStorage.setItem('token', tokenStr);
+    if (userObj) localStorage.setItem('user', JSON.stringify(userObj));
+    else localStorage.removeItem('user');
+    if (tokenStr) localStorage.setItem('token', tokenStr);
+    else localStorage.removeItem('token');
     if (tokenStr) {
       api.defaults.headers.common.Authorization = `Bearer ${tokenStr}`;
     } else {
@@ -22,35 +24,51 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // LOGIN (all roles)
+  // Universal login (staff+users)
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password }, { withCredentials: true });
     persistAuth(res.data.user, res.data.token);
     return res.data;
   };
 
-  // ADMIN LOGIN (same endpoint)
+  // Admin login (can be refactored later if endpoint splits)
   const adminLogin = async (email, password) => {
     const res = await api.post('/auth/login', { email, password }, { withCredentials: true });
     persistAuth(res.data.user, res.data.token);
     return res.data;
   };
 
-  // CHANGE PASSWORD
+  // CEO login: only allow users with role==='ceo'
+  const ceoLogin = async (email, password) => {
+    const res = await api.post('/auth/login', { email, password }, { withCredentials: true });
+    if (res.data.user.role !== 'ceo') {
+      throw new Error("You are not authorized as CEO.");
+    }
+    persistAuth(res.data.user, res.data.token);
+    return res.data;
+  };
+
+  // Change password
   const changePassword = async (oldPassword, newPassword) => {
-    const res = await api.post('/auth/change-password', { oldPassword, newPassword }, { withCredentials: true });
+    const res = await api.post(
+      '/auth/change-password',
+      { oldPassword, newPassword },
+      { withCredentials: true }
+    );
     const updatedUser = { ...user, requiresPasswordChange: false };
     persistAuth(updatedUser, token);
     return res.data;
   };
 
-  // LOGOUT
+  // Logout
   const logout = () => {
     persistAuth(null, null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, adminLogin, changePassword, logout }}>
+    <AuthContext.Provider
+      value={{ user, token, login, adminLogin, ceoLogin, changePassword, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );
