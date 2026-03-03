@@ -92,7 +92,7 @@ router.get('/daily', isAuthenticated, isSuperuser, async (req, res) => {
 });
 
 // TRENDS + KPI (ONLINE fully stripped)
-router.get('/trends', isAuthenticated, isSuperuser, async (req, res) => {
+router.get('/trends', isAuthenticated, isCeoOrSuperuser, async (req, res) => {
   const { departmentId, showroomId } = req.query;
   const now = new Date();
   now.setUTCHours(0, 0, 0, 0);
@@ -284,7 +284,7 @@ router.get('/submission-status', isAuthenticated, isSuperuser, async (req, res) 
 });
 
 // MONTHLY (ONLINE fully stripped)
-router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
+router.get('/monthly', isAuthenticated, isCeoOrSuperuser, async (_req, res) => {
   try {
     const today = new Date();
     const curStart = startOfMonth(today);
@@ -438,7 +438,7 @@ router.get('/monthly', isAuthenticated, isSuperuser, async (_req, res) => {
 });
 
 // MONTHLY-SERIES (CEO dashboard) – ONLINE fully stripped
-router.get('/monthly-series', isAuthenticated, isSuperuser, async (req, res) => {
+router.get('/monthly-series', isAuthenticated, isCeoOrSuperuser, async (req, res) => {
   const months = Math.min(Math.max(parseInt(req.query.months || '6', 10), 1), 24);
   const now = new Date();
   now.setUTCDate(1);
