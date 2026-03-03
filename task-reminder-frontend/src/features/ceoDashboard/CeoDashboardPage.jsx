@@ -47,7 +47,7 @@ const kpiList = (trends) => [
 ];
 
 const CeoDashboardPage = () => {
-  const { trends, monthly, monthlySeries, loading, error, lastUpdated, refetch } = useCeoDashboardData();
+  const { trends, monthlySeries, loading, error, lastUpdated, refetch } = useCeoDashboardData();
   const [drillKpi, setDrillKpi] = useState(null);
 
   return (
