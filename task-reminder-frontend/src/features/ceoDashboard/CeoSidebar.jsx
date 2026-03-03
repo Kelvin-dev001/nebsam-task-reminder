@@ -1,12 +1,11 @@
 import React, { useContext } from "react";
 import {
   Drawer, Box, Typography, List, ListItemButton, ListItemIcon,
-  ListItemText, Divider, Avatar, IconButton, Tooltip,
+  ListItemText, Divider, Avatar,
 } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import LogoutIcon from "@mui/icons-material/Logout";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";

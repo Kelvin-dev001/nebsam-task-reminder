@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   Box, Grid, Typography, ThemeProvider, Button, CircularProgress,
-  Alert, FormControl, Select, MenuItem, InputLabel, Chip,
+  Alert, FormControl, Select, MenuItem, InputLabel,
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
@@ -9,7 +9,6 @@ import SpeedIcon from "@mui/icons-material/Speed";
 import LocalGasStationIcon from "@mui/icons-material/LocalGasStation";
 import RadioIcon from "@mui/icons-material/Radio";
 import GpsFixedIcon from "@mui/icons-material/GpsFixed";
-import VideocamIcon from "@mui/icons-material/Videocam";
 
 import ceoTheme from "./theme";
 import useCeoDashboardData from "./useCeoDashboardData";
