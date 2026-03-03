@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import {
   Box, Grid, Typography, ThemeProvider, Button, CircularProgress,
-  Alert, FormControl, Select, MenuItem, InputLabel,
+  Alert, FormControl, Select, MenuItem, InputLabel, useMediaQuery,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SpeedIcon from "@mui/icons-material/Speed";
@@ -30,6 +31,8 @@ const CeoDashboardPage = () => {
   } = useCeoDashboardData(6);
 
   const [drillKpi, setDrillKpi] = useState(null);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const kpi = trends?.kpi || {};
 
@@ -65,25 +68,41 @@ const CeoDashboardPage = () => {
           component="main"
           sx={{
             flexGrow: 1,
-            ml: `${DRAWER_WIDTH}px`,
+            ml: { xs: 0, md: `${DRAWER_WIDTH}px` },
+            mt: { xs: "56px", md: 0 },
             bgcolor: "background.default",
             minHeight: "100vh",
-            p: { xs: 2, md: 4 },
+            p: { xs: 1.5, sm: 2, md: 4 },
             overflow: "auto",
           }}
         >
           {/* Header */}
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, flexWrap: "wrap", gap: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: { xs: "flex-start", sm: "center" },
+              flexDirection: { xs: "column", sm: "row" },
+              mb: { xs: 2, md: 3 },
+              gap: { xs: 1.5, sm: 2 },
+            }}
+          >
             <Box>
-              <Typography variant="h4" fontWeight={800} color="primary.main">
+              <Typography
+                variant={isMobile ? "h5" : "h4"}
+                fontWeight={800}
+                color="primary.main"
+              >
                 Executive Dashboard
               </Typography>
               <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
-                Monthly Business Analytics &nbsp;•&nbsp; Last updated: {lastUpdated ? lastUpdated.toLocaleTimeString() : "—"}
+                Monthly Analytics&nbsp;•&nbsp;
+                {lastUpdated ? lastUpdated.toLocaleTimeString() : "—"}
               </Typography>
             </Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <FormControl size="small" sx={{ minWidth: 120 }}>
+
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+              <FormControl size="small" sx={{ minWidth: 100 }}>
                 <InputLabel sx={{ color: "text.secondary" }}>Months</InputLabel>
                 <Select
                   value={months}
@@ -92,28 +111,25 @@ const CeoDashboardPage = () => {
                   sx={{ color: "text.primary" }}
                 >
                   {[3, 6, 9, 12].map((m) => (
-                    <MenuItem key={m} value={m}>{m} months</MenuItem>
+                    <MenuItem key={m} value={m}>{m} mo</MenuItem>
                   ))}
                 </Select>
               </FormControl>
               <Button
                 variant="outlined"
-                startIcon={<RefreshIcon />}
+                startIcon={!isMobile && <RefreshIcon />}
                 onClick={refetch}
                 disabled={loading}
-                sx={{ fontWeight: 700, minWidth: 120 }}
+                size={isMobile ? "small" : "medium"}
+                sx={{ fontWeight: 700, minWidth: { xs: 80, md: 120 } }}
               >
-                {loading ? <CircularProgress size={18} /> : "Refresh"}
+                {loading ? <CircularProgress size={16} /> : isMobile ? "↻" : "Refresh"}
               </Button>
             </Box>
           </Box>
 
           {/* Error */}
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+          {error && <Alert severity="error" sx={{ mb: 2, fontSize: { xs: 13, md: 14 } }}>{error}</Alert>}
 
           {/* Loading */}
           {loading && (
@@ -124,16 +140,16 @@ const CeoDashboardPage = () => {
 
           {!loading && (
             <>
-              {/* KPI Strip */}
-              <Grid container spacing={2} sx={{ mb: 4 }}>
+              {/* KPI Grid — responsive: 2 cols mobile, 5 cols desktop */}
+              <Grid container spacing={{ xs: 1, sm: 1.5, md: 2 }} sx={{ mb: { xs: 2, md: 4 } }}>
                 {kpiList.map((k) => (
-                  <Grid item xs={12} sm={6} md={4} lg={2.4} key={k.key}>
+                  <Grid item xs={6} sm={4} md={2.4} key={k.key}>
                     <KpiCard
                       title={k.title}
                       value={k.value}
                       percent={k.percent}
                       showPercent={k.showPercent}
-                      icon={k.icon}
+                      icon={!isMobile ? k.icon : undefined}
                       subtitle={k.subtitle}
                       onClick={() => setDrillKpi(k)}
                     />
@@ -141,7 +157,7 @@ const CeoDashboardPage = () => {
                 ))}
               </Grid>
 
-              {/* Drilldown Modal */}
+              {/* KPI Drilldown */}
               <KpiDrilldownModal
                 open={!!drillKpi}
                 onClose={() => setDrillKpi(null)}
@@ -152,19 +168,11 @@ const CeoDashboardPage = () => {
                 </Typography>
               </KpiDrilldownModal>
 
-              {/* Monthly Sales Trend */}
+              {/* Charts */}
               <MonthlySalesTrendChart monthlySeries={monthlySeries} />
-
-              {/* Department Comparison: This vs Last Month */}
               <DepartmentComparisonChart monthly={monthly} />
-
-              {/* Speed Governor Trend */}
               <GrowthTrendChart monthlySeries={monthlySeries} />
-
-              {/* Speed Governor Breakdown */}
               <SpeedGovernorBreakdownChart monthlySeries={monthlySeries} />
-
-              {/* Showroom Leaderboard */}
               <ShowroomLeaderboard showroomRanking={trends?.showroomRanking} />
             </>
           )}
