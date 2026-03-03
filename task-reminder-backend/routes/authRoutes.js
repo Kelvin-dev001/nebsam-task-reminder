@@ -8,6 +8,10 @@ const { isAuthenticated, isSuperuser } = require('../middleware/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
+// === CEO ENV login config ===
+const ENV_CEO_EMAIL = (process.env.CEO_EMAIL || '').toLowerCase();
+const ENV_CEO_PASSWORD = process.env.CEO_PASSWORD || '';
+
 // Onfon SMS env vars
 const SMS_API_URL = process.env.SMS_API_URL || 'https://api.onfonmedia.co.ke/v1/sms/SendBulkSMS';
 const SMS_API_KEY = process.env.SMS_API_KEY;
@@ -53,6 +57,49 @@ function signUser(user) {
     { expiresIn: '2h' }
   );
 }
+
+// --- CEO ENV-BASED LOGIN ---
+router.post('/ceo-login', async (req, res) => {
+  const { email, password } = req.body;
+  if (
+    ENV_CEO_EMAIL &&
+    ENV_CEO_PASSWORD &&
+    email &&
+    password &&
+    email.toLowerCase() === ENV_CEO_EMAIL &&
+    password === ENV_CEO_PASSWORD
+  ) {
+    // Find or create CEO user in DB
+    let user = await User.findOne({ email: ENV_CEO_EMAIL });
+    if (!user) {
+      user = await User.create({
+        name: "CEO",
+        email: ENV_CEO_EMAIL,
+        username: ENV_CEO_EMAIL.split('@')[0],
+        phone: "",
+        password: await bcrypt.hash(password, 10), // For future-proofing
+        role: "ceo",
+        requiresPasswordChange: false
+      });
+    } else if (user.role !== "ceo") {
+      user.role = "ceo";
+      await user.save();
+    }
+    const token = signUser(user);
+    return res.json({
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        requiresPasswordChange: user.requiresPasswordChange
+      }
+    });
+  } else {
+    return res.status(401).json({ error: "Invalid CEO credentials" });
+  }
+});
 
 // --- USER/ADMIN/SUPERUSER LOGIN ---
 router.post('/login', async (req, res) => {
@@ -124,7 +171,7 @@ router.post('/change-password', isAuthenticated, async (req, res) => {
 // --- SUPERUSER: CREATE USER WITH ROLE + SMS OTP ---
 router.post('/super/create-user', isAuthenticated, isSuperuser, async (req, res) => {
   const { name, email, phone, role = 'user' } = req.body;
-  if (!['user', 'admin', 'superuser'].includes(role)) {
+  if (!['user', 'admin', 'superuser', 'ceo'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
   if (!phone) {
