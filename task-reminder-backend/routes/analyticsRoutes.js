@@ -3,8 +3,7 @@ const router = express.Router();
 const DailyDepartmentReport = require('../models/DailyDepartmentReport');
 const Department = require('../models/Department');
 const Showroom = require('../models/Showroom');
-const { isAuthenticated, isSuperuser } = require('../middleware/auth');
-
+const { isAuthenticated, isSuperuser, isCeoOrSuperuser } = require('../middleware/auth');
 function normalizeDate(d) {
   const dt = new Date(d);
   dt.setUTCHours(0, 0, 0, 0);
