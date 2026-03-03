@@ -1,27 +1,31 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../../api";
 
-export default function useCeoDashboardData(monthsToFetch = 6) {
-  const [data, setData] = useState({
-    trends: null,
-    monthly: null,
-    monthlySeries: null,
-  });
+// Get current month as YYYY-MM
+function getCurrentMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export default function useCeoDashboardData() {
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
+  const [data, setData] = useState(null);
+  const [monthlySeries, setMonthlySeries] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [months, setMonths] = useState(monthsToFetch);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [trends, monthly, monthlySeries] = await Promise.all([
-        api.get("/analytics/trends").then((r) => r.data),
-        api.get("/analytics/monthly").then((r) => r.data),
-        api.get(`/analytics/monthly-series?months=${months}`).then((r) => r.data),
+      // Fetch selected month data + 6-month series in parallel
+      const [monthData, seriesData] = await Promise.all([
+        api.get(`/analytics/ceo-month?month=${selectedMonth}`).then((r) => r.data),
+        api.get("/analytics/monthly-series?months=6").then((r) => r.data),
       ]);
-      setData({ trends, monthly, monthlySeries });
+      setData(monthData);
+      setMonthlySeries(seriesData);
       setLastUpdated(new Date());
     } catch (err) {
       setError(
@@ -29,7 +33,7 @@ export default function useCeoDashboardData(monthsToFetch = 6) {
       );
     }
     setLoading(false);
-  }, [months]);
+  }, [selectedMonth]);
 
   useEffect(() => {
     fetchData();
@@ -38,12 +42,13 @@ export default function useCeoDashboardData(monthsToFetch = 6) {
   }, [fetchData]);
 
   return {
-    ...data,
+    data,
+    monthlySeries,
     loading,
     error,
     lastUpdated,
-    months,
-    setMonths,
+    selectedMonth,
+    setSelectedMonth,
     refetch: fetchData,
   };
 }
