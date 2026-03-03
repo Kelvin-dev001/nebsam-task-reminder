@@ -29,7 +29,7 @@ const CeoLoginPage = () => {
     setLoading(true);
     setSnack({ open: false, message: '', severity: "success" });
     try {
-      const data = await ceoLogin(form.email, form.password);
+       await ceoLogin(form.email, form.password);
       setSnack({ open: true, message: "Welcome, CEO! 👑", severity: "success" });
       setTimeout(() => {
         navigate('/ceo');
