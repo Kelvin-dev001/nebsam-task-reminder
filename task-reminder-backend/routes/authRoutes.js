@@ -76,7 +76,7 @@ router.post('/ceo-login', async (req, res) => {
         name: "CEO",
         email: ENV_CEO_EMAIL,
         username: ENV_CEO_EMAIL.split('@')[0],
-        phone: "",
+        phone: "+254706707494",
         password: await bcrypt.hash(password, 10), // For future-proofing
         role: "ceo",
         requiresPasswordChange: false
