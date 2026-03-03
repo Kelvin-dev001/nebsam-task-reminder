@@ -1,4 +1,4 @@
-import React, { createContext, useState } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
 import api from '../api';
 
 export const AuthContext = createContext();
@@ -10,20 +10,24 @@ export const AuthProvider = ({ children }) => {
   });
   const [token, setToken] = useState(() => localStorage.getItem('token'));
 
-  // Synchronize and persist user/token & api header
+  // On mount: restore Authorization header from localStorage
+  useEffect(() => {
+    const savedToken = localStorage.getItem('token');
+    if (savedToken) {
+      api.defaults.headers.common.Authorization = `Bearer ${savedToken}`;
+    }
+  }, []);
+
   const persistAuth = (userObj, tokenStr) => {
     setUser(userObj);
     setToken(tokenStr);
-
     if (userObj) localStorage.setItem('user', JSON.stringify(userObj));
     else localStorage.removeItem('user');
-
-    if (tokenStr) localStorage.setItem('token', tokenStr);
-    else localStorage.removeItem('token');
-
     if (tokenStr) {
+      localStorage.setItem('token', tokenStr);
       api.defaults.headers.common.Authorization = `Bearer ${tokenStr}`;
     } else {
+      localStorage.removeItem('token');
       delete api.defaults.headers.common.Authorization;
     }
   };
@@ -42,7 +46,7 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
-  // CEO login: use dedicated env-based endpoint!
+  // CEO login: use dedicated env-based endpoint
   const ceoLogin = async (email, password) => {
     const res = await api.post('/auth/ceo-login', { email, password }, { withCredentials: true });
     persistAuth(res.data.user, res.data.token);
@@ -68,15 +72,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        token,
-        login,
-        adminLogin,
-        ceoLogin,
-        changePassword,
-        logout,
-      }}
+      value={{ user, token, login, adminLogin, ceoLogin, changePassword, logout }}
     >
       {children}
     </AuthContext.Provider>
