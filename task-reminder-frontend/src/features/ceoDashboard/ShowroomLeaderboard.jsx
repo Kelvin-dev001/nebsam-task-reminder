@@ -1,5 +1,5 @@
 import React from "react";
-import { Paper, Typography, Box } from "@mui/material";
+import { Paper, Typography, } from "@mui/material";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend,
   CartesianGrid, ResponsiveContainer, Cell,
@@ -11,7 +11,7 @@ const ShowroomLeaderboard = ({ showroomRanking = [] }) => {
   if (!showroomRanking || showroomRanking.length === 0) {
     return (
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" fontWeight={700}>🏆 Showroom Leaderboard</Typography>
+        <Typography variant="h6" fontWeight={700}> Showroom Leaderboard 🏆</Typography>
         <Typography color="text.secondary" sx={{ mt: 2 }}>No showroom data available this month.</Typography>
       </Paper>
     );
