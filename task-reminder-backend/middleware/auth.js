@@ -17,6 +17,14 @@ exports.isAdminOrSuperuser = (req, res, next) => {
 };
 
 exports.isSuperuser = (req, res, next) => {
-  if (req.user && (req.user.role === 'superuser' || req.user.role === 'ceo')) return next();
-  return res.status(403).json({  message: 'Superuser or CEO only' });
+  if (req.user && req.user.role === 'superuser') return next();
+  return res.status(403).json({ message: 'Superuser only' });
+};
+
+// NEW: Allow CEO or Superuser access to executive analytics
+exports.isCeoOrSuperuser = (req, res, next) => {
+  if (req.user && (req.user.role === 'ceo' || req.user.role === 'superuser')) {
+    return next();
+  }
+  return res.status(403).json({ message: 'CEO or Superuser only' });
 };

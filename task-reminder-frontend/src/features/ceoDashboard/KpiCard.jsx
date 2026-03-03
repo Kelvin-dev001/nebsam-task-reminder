@@ -1,58 +1,59 @@
-import React from 'react';
-import { Card, CardContent, Typography, Box } from '@mui/material';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import React from "react";
+import { Card, CardContent, Typography, Box } from "@mui/material";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import TrendingFlatIcon from "@mui/icons-material/TrendingFlat";
 
-const getColor = (value) => {
-  if (typeof value !== "number") return "";
-  return value > 0 ? "success.main" : value < 0 ? "error.main" : "grey.700";
+const KpiCard = ({ title, value, percent, showPercent, icon, onClick }) => {
+  const getArrow = (val) => {
+    if (typeof val !== "number") return <TrendingFlatIcon sx={{ color: "grey.500", fontSize: 20 }} />;
+    if (val > 0) return <TrendingUpIcon sx={{ color: "success.main", fontSize: 20 }} />;
+    if (val < 0) return <TrendingDownIcon sx={{ color: "error.main", fontSize: 20 }} />;
+    return <TrendingFlatIcon sx={{ color: "grey.500", fontSize: 20 }} />;
+  };
+
+  const getColor = (val) => {
+    if (typeof val !== "number") return "text.secondary";
+    return val > 0 ? "success.main" : val < 0 ? "error.main" : "text.secondary";
+  };
+
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        height: "100%",
+        cursor: onClick ? "pointer" : "default",
+        borderColor: "divider",
+        transition: "transform 0.2s, box-shadow 0.2s",
+        "&:hover": onClick
+          ? { transform: "translateY(-2px)", boxShadow: 6 }
+          : {},
+      }}
+      onClick={onClick}
+    >
+      <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", fontWeight: 600, letterSpacing: 1 }}>
+            {title}
+          </Typography>
+          {icon && <Box sx={{ color: "primary.main", opacity: 0.7 }}>{icon}</Box>}
+        </Box>
+        <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+          <Typography variant="h4" fontWeight={800} color="text.primary">
+            {value}
+          </Typography>
+          {showPercent && typeof percent === "number" && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
+              {getArrow(percent)}
+              <Typography variant="body2" fontWeight={700} color={getColor(percent)}>
+                {Math.abs(percent).toFixed(1)}%
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
+  );
 };
-
-const getArrow = (value) => {
-  if (typeof value !== "number") return null;
-  return value > 0 ? <ArrowUpwardIcon color="success" fontSize="small" /> :
-         value < 0 ? <ArrowDownwardIcon color="error" fontSize="small" /> :
-         null;
-};
-
-const KpiCard = ({
-  title, value, subtitle, percent, showPercent, onClick, color
-}) => (
-  <Card
-    variant="outlined"
-    sx={{
-      minWidth: 180,
-      height: "100%",
-      cursor: onClick ? "pointer" : "default",
-      borderLeft: color ? `4px solid ${color}` : undefined,
-      boxShadow: onClick ? 3 : 1,
-      transition: "box-shadow 0.2s"
-    }}
-    onClick={onClick}
-  >
-    <CardContent>
-      <Typography variant="subtitle2" color="text.secondary">{title}</Typography>
-      <Box sx={{ display: "flex", alignItems: "center", mt: 0.5, mb: 0.5 }}>
-        <Typography variant="h5" component="div" fontWeight={700}>
-          {value}
-        </Typography>
-        {showPercent && typeof percent === "number" && (
-          <Box sx={{ display: "flex", alignItems: "center", ml: 1 }}>
-            {getArrow(percent)}
-            <Typography
-              variant="body2"
-              color={getColor(percent)}
-              fontWeight={600}
-              sx={{ ml: 0.2 }}
-            >
-              {Math.abs(percent).toFixed(1)}%
-            </Typography>
-          </Box>
-        )}
-      </Box>
-      {subtitle && <Typography color="text.secondary" variant="body2">{subtitle}</Typography>}
-    </CardContent>
-  </Card>
-);
 
 export default KpiCard;

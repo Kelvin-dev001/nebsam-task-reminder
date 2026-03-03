@@ -1,43 +1,50 @@
-import { createTheme } from '@mui/material/styles';
+import { createTheme } from "@mui/material/styles";
 
 const ceoTheme = createTheme({
   palette: {
-    mode: 'light',
-    primary: { main: '#112B44' },            // Rich navy blue
-    secondary: { main: '#F6B800' },          // Executive gold
+    mode: "dark",
+    primary: { main: "#90caf9" },
+    secondary: { main: "#f6b800" },
     background: {
-      default: '#F4F6F8',
-      paper: '#fff',
+      default: "#0a1929",
+      paper: "#0d2137",
     },
-    success: { main: '#2BC88B' },
-    error: { main: '#E23F3F' },
+    text: {
+      primary: "#e3f2fd",
+      secondary: "#90a4ae",
+    },
+    success: { main: "#66bb6a" },
+    error: { main: "#ef5350" },
+    warning: { main: "#ffa726" },
+    divider: "rgba(144,202,249,0.12)",
   },
   typography: {
-    fontFamily: [
-      'Inter', 'Roboto', 'Arial', 'sans-serif'
-    ].join(','),
-    h5: {
-      fontWeight: 700,
-      letterSpacing: '-0.5px'
-    },
+    fontFamily: "'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif",
+    h4: { fontWeight: 800, letterSpacing: "-0.02em" },
+    h5: { fontWeight: 700, letterSpacing: "-0.01em" },
+    h6: { fontWeight: 700 },
+    subtitle1: { fontWeight: 600 },
+    subtitle2: { fontWeight: 500 },
   },
+  shape: { borderRadius: 12 },
   components: {
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: 16,
-          boxShadow: '0 4px 24px 0 rgba(18,28,56,0.10), 0 1.5px 6px 0 rgba(18,28,56,0.032)'
-        }
-      }
-    },
     MuiPaper: {
       styleOverrides: {
         root: {
-          borderRadius: 16
-        }
-      }
-    }
-  }
+          backgroundImage: "none",
+          borderRadius: 12,
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          backgroundImage: "none",
+          borderRadius: 12,
+        },
+      },
+    },
+  },
 });
 
 export default ceoTheme;

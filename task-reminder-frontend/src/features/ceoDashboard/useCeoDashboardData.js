@@ -1,50 +1,49 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../../api";
 
-const ENDPOINTS = [
-  "/analytics/trends",
-  "/analytics/monthly",
-  "/analytics/monthly-series",
-];
-
-const fetchAll = async () => {
-  // parallel fetch all analytics endpoints
-  const [trends, monthly, monthlySeries] = await Promise.all(
-    ENDPOINTS.map(url => api.get(url).then(res => res.data))
-  );
-  return { trends, monthly, monthlySeries };
-};
-
-export default function useCeoDashboardData(refreshMs = 5 * 60 * 1000) {
-  const [data, setData] = useState({ trends: null, monthly: null, monthlySeries: null });
+export default function useCeoDashboardData(monthsToFetch = 6) {
+  const [data, setData] = useState({
+    trends: null,
+    monthly: null,
+    monthlySeries: null,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [months, setMonths] = useState(monthsToFetch);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const d = await fetchAll();
-      setData(d);
+      const [trends, monthly, monthlySeries] = await Promise.all([
+        api.get("/analytics/trends").then((r) => r.data),
+        api.get("/analytics/monthly").then((r) => r.data),
+        api.get(`/analytics/monthly-series?months=${months}`).then((r) => r.data),
+      ]);
+      setData({ trends, monthly, monthlySeries });
       setLastUpdated(new Date());
     } catch (err) {
-      setError(err.message || "Analytics fetch failed");
+      setError(
+        err?.response?.data?.error || err.message || "Analytics fetch failed"
+      );
     }
     setLoading(false);
-  }, []);
+  }, [months]);
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, refreshMs);
+    const interval = setInterval(fetchData, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [fetchData, refreshMs]);
+  }, [fetchData]);
 
   return {
     ...data,
     loading,
     error,
     lastUpdated,
-    refetch: fetchData
+    months,
+    setMonths,
+    refetch: fetchData,
   };
 }

@@ -3,12 +3,16 @@ import { Dialog, DialogTitle, DialogContent, Box, IconButton } from "@mui/materi
 import CloseIcon from "@mui/icons-material/Close";
 
 const KpiDrilldownModal = ({ open, onClose, title, children }) => (
-  <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+  <Dialog
+    open={open}
+    onClose={onClose}
+    maxWidth="sm"
+    fullWidth
+    PaperProps={{ sx: { bgcolor: "background.paper", backgroundImage: "none" } }}
+  >
     <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
       <span>{title}</span>
-      <IconButton onClick={onClose}>
-        <CloseIcon />
-      </IconButton>
+      <IconButton onClick={onClose}><CloseIcon /></IconButton>
     </DialogTitle>
     <DialogContent dividers>
       <Box>{children}</Box>
