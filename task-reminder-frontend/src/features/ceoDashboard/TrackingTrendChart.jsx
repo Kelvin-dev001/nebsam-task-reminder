@@ -21,7 +21,6 @@ const TrackingTrendChart = ({ monthlySeries }) => {
 
   const data = months.map((month, idx) => {
     const t = monthlySeries.track?.[idx] || {};
-    const installs = (t.tracker1Inst || 0) + (t.tracker2Inst || 0) + (t.magneticInst || 0);
     const renewals = (t.tracker1Ren || 0) + (t.tracker2Ren || 0) + (t.magneticRen || 0);
     return {
       month,
@@ -36,7 +35,7 @@ const TrackingTrendChart = ({ monthlySeries }) => {
   return (
     <Paper elevation={3} sx={{ p: { xs: 1.5, md: 3 }, mb: { xs: 2, md: 3 } }}>
       <Typography variant={isMobile ? "subtitle1" : "h6"} fontWeight={700} sx={{ mb: 1.5 }}>
-        🛰️ Tracking — Monthly Installs vs Renewals
+        Tracking — Monthly Installs vs Renewals
       </Typography>
       <ResponsiveContainer width="100%" height={isMobile ? 260 : 360}>
         <ComposedChart data={data} barGap={2}>

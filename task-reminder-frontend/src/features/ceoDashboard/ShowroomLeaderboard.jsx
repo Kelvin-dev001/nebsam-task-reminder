@@ -1,5 +1,5 @@
 import React from "react";
-import { Paper, Typography, Box, useMediaQuery } from "@mui/material";
+import { Paper, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend,
@@ -16,7 +16,7 @@ const ShowroomLeaderboard = ({ showroomRanking = [] }) => {
     return (
       <Paper elevation={3} sx={{ p: { xs: 1.5, md: 3 }, mb: { xs: 2, md: 3 } }}>
         <Typography variant={isMobile ? "subtitle1" : "h6"} fontWeight={700}>
-          🏆 Showroom Leaderboard — Top 10
+           Showroom Leaderboard — Top 10
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 2 }}>
           No showroom data available for this month.
@@ -35,7 +35,7 @@ const ShowroomLeaderboard = ({ showroomRanking = [] }) => {
   return (
     <Paper elevation={3} sx={{ p: { xs: 1.5, md: 3 }, mb: { xs: 2, md: 3 } }}>
       <Typography variant={isMobile ? "subtitle1" : "h6"} fontWeight={700} sx={{ mb: 2 }}>
-        🏆 Showroom Leaderboard — Top 10 by Tracking Installs
+        Showroom Leaderboard — Top 10 by Tracking Installs
       </Typography>
       <ResponsiveContainer width="100%" height={chartHeight}>
         <BarChart data={sorted} layout="vertical" barSize={isMobile ? 16 : 24}>
