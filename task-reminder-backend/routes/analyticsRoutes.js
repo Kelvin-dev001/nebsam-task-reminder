@@ -730,24 +730,21 @@ router.get('/monthly-series', isAuthenticated, isCeoOrSuperuser, async (req, res
   res.json(resp);
 });
 // --- CEO: FETCH DATA FOR A SPECIFIC MONTH ---
-// GET /analytics/ceo-month?month=2026-02
-// Returns trends + monthly comparison (selected vs previous) + KPIs for that month
 router.get('/ceo-month', isAuthenticated, isCeoOrSuperuser, async (req, res) => {
   try {
-    const monthParam = req.query.month; // e.g. "2026-02"
+    const monthParam = req.query.month;
     if (!monthParam || !/^\d{4}-\d{2}$/.test(monthParam)) {
       return res.status(400).json({ error: 'month query param required in YYYY-MM format' });
     }
 
     const [yearStr, monthStr] = monthParam.split('-');
     const year = parseInt(yearStr, 10);
-    const monthIdx = parseInt(monthStr, 10) - 1; // 0-indexed
+    const monthIdx = parseInt(monthStr, 10) - 1;
 
     const selectedStart = new Date(Date.UTC(year, monthIdx, 1, 0, 0, 0, 0));
     const selectedEnd = new Date(Date.UTC(year, monthIdx + 1, 1, 0, 0, 0, 0));
     const prevStart = new Date(Date.UTC(year, monthIdx - 1, 1, 0, 0, 0, 0));
 
-    // --- TOTAL SALES ---
     const sumWindow = async (start, end) => {
       const data = await DailyDepartmentReport.aggregate([
         { $match: { reportDate: { $gte: start, $lt: end } } },
@@ -759,12 +756,9 @@ router.get('/ceo-month', isAuthenticated, isCeoOrSuperuser, async (req, res) => 
 
     const selectedSales = await sumWindow(selectedStart, selectedEnd);
     const prevSales = await sumWindow(prevStart, selectedStart);
+    const pctChange = prevSales ? ((selectedSales - prevSales) / prevSales) * 100 : null;
 
-    const pctChange = prevSales
-      ? ((selectedSales - prevSales) / prevSales) * 100
-      : null;
-
-    // --- KPIs for selected month ---
+    // KPIs for selected month (including Hybrid Alarm + Hybrid Tracker)
     const kpiAgg = await DailyDepartmentReport.aggregate([
       { $match: { reportDate: { $gte: selectedStart, $lt: selectedEnd } } },
       {
@@ -818,11 +812,19 @@ router.get('/ceo-month', isAuthenticated, isCeoOrSuperuser, async (req, res) => 
               ],
             },
           },
+          // Hybrid Alarm Installs (from carAlarms schema)
+          hybridAlarmInstalls: {
+            $sum: { $ifNull: ['$carAlarms.hybridAlarmInstall', 0] },
+          },
+          // Hybrid Tracker Installs (from tracking schema)
+          hybridTrackerInstalls: {
+            $sum: { $ifNull: ['$tracking.hybridInstall', 0] },
+          },
         },
       },
     ]);
 
-    // --- Showroom ranking for selected month ---
+    // Showroom ranking (top 10)
     const showroomAgg = await DailyDepartmentReport.aggregate([
       {
         $match: {
@@ -855,6 +857,7 @@ router.get('/ceo-month', isAuthenticated, isCeoOrSuperuser, async (req, res) => 
         },
       },
       { $sort: { installs: -1 } },
+      { $limit: 10 },
       {
         $lookup: {
           from: 'showrooms',
@@ -871,96 +874,6 @@ router.get('/ceo-month', isAuthenticated, isCeoOrSuperuser, async (req, res) => 
           showroomName: { $arrayElemAt: ['$showroom.name', 0] },
         },
       },
-    ]);
-
-    // --- Department breakdown (selected month vs previous) ---
-    const aggRange = async (start, end) => {
-      const data = await DailyDepartmentReport.aggregate([
-        { $match: { reportDate: { $gte: start, $lt: end } } },
-        {
-          $lookup: {
-            from: 'departments',
-            localField: 'departmentId',
-            foreignField: '_id',
-            as: 'dept',
-          },
-        },
-        {
-          $project: {
-            deptCode: { $arrayElemAt: ['$dept.code', 0] },
-            govInstalls: sumAll('$speedGovernor.nebsam.officeInstall', '$speedGovernor.nebsam.agentInstall', '$speedGovernor.sinotrack.officeInstall', '$speedGovernor.sinotrack.agentInstall'),
-            govRenewals: sumAll('$speedGovernor.nebsam.officeRenewal', '$speedGovernor.nebsam.agentRenewal', '$speedGovernor.mockMombasa.officeRenewal', '$speedGovernor.mockMombasa.agentRenewal', '$speedGovernor.sinotrack.officeRenewal', '$speedGovernor.sinotrack.agentRenewal'),
-            trackingInstalls: sumAll('$tracking.tracker1Install', '$tracking.tracker2Install', '$tracking.magneticInstall'),
-            trackingRenewals: sumAll('$tracking.tracker1Renewal', '$tracking.tracker2Renewal', '$tracking.magneticRenewal'),
-            radioSales: sumAll('$radio.officeSale', '$radio.agentSale'),
-            radioRenewals: sumAll('$radio.officeRenewal'),
-            fuelInstalls: sumAll('$fuel.officeInstall', '$fuel.agentInstall'),
-            fuelRenewals: sumAll('$fuel.officeRenewal'),
-            vtelInstalls: sumAll('$vehicleTelematics.officeInstall', '$vehicleTelematics.agentInstall'),
-            vtelRenewals: sumAll('$vehicleTelematics.officeRenewal'),
-          },
-        },
-        {
-          $group: {
-            _id: '$deptCode',
-            govInstalls: { $sum: '$govInstalls' }, govRenewals: { $sum: '$govRenewals' },
-            trackingInstalls: { $sum: '$trackingInstalls' }, trackingRenewals: { $sum: '$trackingRenewals' },
-            radioSales: { $sum: '$radioSales' }, radioRenewals: { $sum: '$radioRenewals' },
-            fuelInstalls: { $sum: '$fuelInstalls' }, fuelRenewals: { $sum: '$fuelRenewals' },
-            vtelInstalls: { $sum: '$vtelInstalls' }, vtelRenewals: { $sum: '$vtelRenewals' },
-          },
-        },
-      ]);
-      const map = {};
-      data.forEach((d) => { map[d._id || 'UNKNOWN'] = d; });
-      const get = (code, field) => map[code]?.[field] ?? 0;
-      return {
-        tracking: { installs: get('TRACK', 'trackingInstalls'), renewals: get('TRACK', 'trackingRenewals') },
-        gov: { installs: get('GOV', 'govInstalls'), renewals: get('GOV', 'govRenewals') },
-        radio: { sales: get('RADIO', 'radioSales'), renewals: get('RADIO', 'radioRenewals') },
-        fuel: { installs: get('FUEL', 'fuelInstalls'), renewals: get('FUEL', 'fuelRenewals') },
-        vtel: { installs: get('VTEL', 'vtelInstalls'), renewals: get('VTEL', 'vtelRenewals') },
-      };
-    };
-
-    const selectedDepts = await aggRange(selectedStart, selectedEnd);
-    const previousDepts = await aggRange(prevStart, selectedStart);
-
-    // --- Daily series within selected month ---
-    const dailySeries = await DailyDepartmentReport.aggregate([
-      { $match: { reportDate: { $gte: selectedStart, $lt: selectedEnd } } },
-      { $project: { reportDate: 1, sales: salesExpr } },
-      { $group: { _id: '$reportDate', sales: { $sum: '$sales' } } },
-      { $sort: { _id: 1 } },
-    ]);
-
-    // --- Speed Governor daily breakdown for selected month ---
-    const govDaily = await DailyDepartmentReport.aggregate([
-      {
-        $match: {
-          reportDate: { $gte: selectedStart, $lt: selectedEnd },
-          speedGovernor: { $exists: true },
-        },
-      },
-      {
-        $project: {
-          reportDate: 1,
-          nebsamInst: { $add: [{ $ifNull: ['$speedGovernor.nebsam.officeInstall', 0] }, { $ifNull: ['$speedGovernor.nebsam.agentInstall', 0] }] },
-          nebsamRen: { $add: [{ $ifNull: ['$speedGovernor.nebsam.officeRenewal', 0] }, { $ifNull: ['$speedGovernor.nebsam.agentRenewal', 0] }] },
-          mockRen: { $add: [{ $ifNull: ['$speedGovernor.mockMombasa.officeRenewal', 0] }, { $ifNull: ['$speedGovernor.mockMombasa.agentRenewal', 0] }] },
-          sinoInst: { $add: [{ $ifNull: ['$speedGovernor.sinotrack.officeInstall', 0] }, { $ifNull: ['$speedGovernor.sinotrack.agentInstall', 0] }] },
-          sinoRen: { $add: [{ $ifNull: ['$speedGovernor.sinotrack.officeRenewal', 0] }, { $ifNull: ['$speedGovernor.sinotrack.agentRenewal', 0] }] },
-        },
-      },
-      {
-        $group: {
-          _id: '$reportDate',
-          nebsamInst: { $sum: '$nebsamInst' }, nebsamRen: { $sum: '$nebsamRen' },
-          mockRen: { $sum: '$mockRen' },
-          sinoInst: { $sum: '$sinoInst' }, sinoRen: { $sum: '$sinoRen' },
-        },
-      },
-      { $sort: { _id: 1 } },
     ]);
 
     const k = kpiAgg[0] || {};
@@ -980,13 +893,12 @@ router.get('/ceo-month', isAuthenticated, isCeoOrSuperuser, async (req, res) => 
         radioRenewals: k.radioRenewals || 0,
         trackingInstalls: k.trackingInstalls || 0,
         trackingRenewals: k.trackingRenewals || 0,
+        hybridAlarmInstalls: k.hybridAlarmInstalls || 0,
+        hybridTrackerInstalls: k.hybridTrackerInstalls || 0,
         trackingTopShowroom: leader?.showroomName || '—',
         trackingTopShowroomInstalls: leader?.installs || 0,
       },
       showroomRanking: showroomAgg,
-      departments: { current: selectedDepts, previous: previousDepts },
-      dailySeries,
-      govDaily,
     });
   } catch (err) {
     console.error('CEO month error:', err);

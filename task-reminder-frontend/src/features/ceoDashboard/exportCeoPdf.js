@@ -16,9 +16,8 @@ const buildRow = (label, value) =>
   `<tr><td style="padding:8px 16px;font-weight:600;border-bottom:1px solid #e0e0e0">${label}</td>
    <td style="padding:8px 16px;text-align:right;border-bottom:1px solid #e0e0e0">${value}</td></tr>`;
 
-export function exportCeoPdf({ data, selectedMonth }) {
-  const kpi = data?.kpi || {};
-  const cur = data?.departments?.current || {};
+export function exportCeoPdf({ monthData, selectedMonth }) {
+  const kpi = monthData?.kpi || {};
   const monthLabel = formatMonthLabel(selectedMonth);
 
   const html = `
@@ -36,15 +35,15 @@ export function exportCeoPdf({ data, selectedMonth }) {
       </style>
     </head>
     <body>
-      <h1>NEBSAM — CEO Monthly Report</h1>
+      <h1>📊 NEBSAM — CEO Monthly Report</h1>
       <div class="subtitle">${monthLabel} | Generated ${new Date().toLocaleString()}</div>
 
       <h2>Executive KPIs — ${monthLabel}</h2>
       <table>
         <thead><tr><th>Metric</th><th style="text-align:right">Value</th></tr></thead>
         <tbody>
-          ${buildRow("Total Sales", data?.selectedSales ?? "—")}
-          ${buildRow("Growth vs Previous Month", data?.pctChange != null ? `${data.pctChange.toFixed(1)}%` : "—")}
+          ${buildRow("Total Sales", monthData?.selectedSales ?? "—")}
+          ${buildRow("Growth vs Previous Month", monthData?.pctChange != null ? `${monthData.pctChange.toFixed(1)}%` : "—")}
           ${buildRow("Gov Installs", kpi.govInstalls ?? "—")}
           ${buildRow("Gov Renewals", kpi.govRenewals ?? "—")}
           ${buildRow("Fuel Installs", kpi.fuelInstalls ?? "—")}
@@ -53,42 +52,23 @@ export function exportCeoPdf({ data, selectedMonth }) {
           ${buildRow("Radio Renewals", kpi.radioRenewals ?? "—")}
           ${buildRow("Tracking Installs", kpi.trackingInstalls ?? "—")}
           ${buildRow("Tracking Renewals", kpi.trackingRenewals ?? "—")}
+          ${buildRow("Hybrid Alarm Installs", kpi.hybridAlarmInstalls ?? "—")}
+          ${buildRow("Hybrid Tracker Installs", kpi.hybridTrackerInstalls ?? "—")}
           ${buildRow("Top Showroom", kpi.trackingTopShowroom ?? "—")}
         </tbody>
       </table>
 
-      <h2>Department Performance — ${monthLabel}</h2>
+      <h2>Top 10 Showrooms — ${monthLabel}</h2>
       <table>
-        <thead><tr><th>Department</th><th style="text-align:right">Installs/Sales</th><th style="text-align:right">Renewals</th></tr></thead>
+        <thead><tr><th>#</th><th>Showroom</th><th style="text-align:right">Installs</th><th style="text-align:right">Renewals</th></tr></thead>
         <tbody>
-          <tr><td style="padding:8px 16px;border-bottom:1px solid #e0e0e0">Speed Governor</td>
-              <td style="padding:8px 16px;text-align:right;border-bottom:1px solid #e0e0e0">${cur.gov?.installs ?? 0}</td>
-              <td style="padding:8px 16px;text-align:right;border-bottom:1px solid #e0e0e0">${cur.gov?.renewals ?? 0}</td></tr>
-          <tr><td style="padding:8px 16px;border-bottom:1px solid #e0e0e0">Tracking</td>
-              <td style="padding:8px 16px;text-align:right;border-bottom:1px solid #e0e0e0">${cur.tracking?.installs ?? 0}</td>
-              <td style="padding:8px 16px;text-align:right;border-bottom:1px solid #e0e0e0">${cur.tracking?.renewals ?? 0}</td></tr>
-          <tr><td style="padding:8px 16px;border-bottom:1px solid #e0e0e0">Fuel</td>
-              <td style="padding:8px 16px;text-align:right;border-bottom:1px solid #e0e0e0">${cur.fuel?.installs ?? 0}</td>
-              <td style="padding:8px 16px;text-align:right;border-bottom:1px solid #e0e0e0">${cur.fuel?.renewals ?? 0}</td></tr>
-          <tr><td style="padding:8px 16px;border-bottom:1px solid #e0e0e0">Radio</td>
-              <td style="padding:8px 16px;text-align:right;border-bottom:1px solid #e0e0e0">${cur.radio?.sales ?? 0}</td>
-              <td style="padding:8px 16px;text-align:right;border-bottom:1px solid #e0e0e0">${cur.radio?.renewals ?? 0}</td></tr>
-          <tr><td style="padding:8px 16px;border-bottom:1px solid #e0e0e0">Video Telematics</td>
-              <td style="padding:8px 16px;text-align:right;border-bottom:1px solid #e0e0e0">${cur.vtel?.installs ?? 0}</td>
-              <td style="padding:8px 16px;text-align:right;border-bottom:1px solid #e0e0e0">${cur.vtel?.renewals ?? 0}</td></tr>
-        </tbody>
-      </table>
-
-      <h2>Showroom Rankings — ${monthLabel}</h2>
-      <table>
-        <thead><tr><th>Showroom</th><th style="text-align:right">Installs</th><th style="text-align:right">Renewals</th></tr></thead>
-        <tbody>
-          ${(data?.showroomRanking || [])
+          ${(monthData?.showroomRanking || [])
             .filter((s) => s.showroomName)
-            .slice(0, 15)
+            .slice(0, 10)
             .map(
-              (s) =>
-                `<tr><td style="padding:8px 16px;border-bottom:1px solid #e0e0e0">${s.showroomName}</td>
+              (s, i) =>
+                `<tr><td style="padding:8px 16px;border-bottom:1px solid #e0e0e0;font-weight:600">${i + 1}</td>
+                     <td style="padding:8px 16px;border-bottom:1px solid #e0e0e0">${s.showroomName}</td>
                      <td style="padding:8px 16px;text-align:right;border-bottom:1px solid #e0e0e0">${s.installs}</td>
                      <td style="padding:8px 16px;text-align:right;border-bottom:1px solid #e0e0e0">${s.renewals || 0}</td></tr>`
             )

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   Box, Grid, Typography, ThemeProvider, Button, CircularProgress,
-  Alert, Chip, useMediaQuery,
+  Alert, Chip, Divider, useMediaQuery,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -10,18 +10,20 @@ import SpeedIcon from "@mui/icons-material/Speed";
 import LocalGasStationIcon from "@mui/icons-material/LocalGasStation";
 import RadioIcon from "@mui/icons-material/Radio";
 import GpsFixedIcon from "@mui/icons-material/GpsFixed";
+import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
+import BlurOnIcon from "@mui/icons-material/BlurOn";
 
 import ceoTheme from "./theme";
 import useCeoDashboardData from "./useCeoDashboardData";
 import MonthYearPicker from "./MonthYearPicker";
 import KpiCard from "./KpiCard";
 import KpiDrilldownModal from "./KpiDrilldownModal";
-import DailySalesChart from "./DailySalesChart";
-import GovDailyChart from "./GovDailyChart";
-import DepartmentComparisonChart from "./DepartmentComparisonChart";
 import ShowroomLeaderboard from "./ShowroomLeaderboard";
-import MonthlySalesTrendChart from "./MonthlySalesTrendChart";
-import SpeedGovernorBreakdownChart from "./SpeedGovernorBreakdownChart";
+import InstallationTrendsChart from "./InstallationTrendsChart";
+import RenewalTrendsChart from "./RenewalTrendsChart";
+import TrackingTrendChart from "./TrackingTrendChart";
+import GovInstallsChart from "./GovInstallsChart";
+import GovRenewalsChart from "./GovRenewalsChart";
 import CeoSidebar, { DRAWER_WIDTH } from "./CeoSidebar";
 import { exportCeoPdf } from "./exportCeoPdf";
 
@@ -38,7 +40,7 @@ function formatMonthLabel(monthStr) {
 
 const CeoDashboardPage = () => {
   const {
-    data, monthlySeries, loading, error, lastUpdated,
+    monthData, monthlySeries, loading, error, lastUpdated,
     selectedMonth, setSelectedMonth, refetch,
   } = useCeoDashboardData();
 
@@ -46,14 +48,14 @@ const CeoDashboardPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  const kpi = data?.kpi || {};
+  const kpi = monthData?.kpi || {};
   const monthLabel = formatMonthLabel(selectedMonth);
 
   const kpiList = [
     {
       key: "totalSales", title: "Total Sales", icon: <TrendingUpIcon />,
-      value: data?.selectedSales ?? "—",
-      percent: data?.pctChange, showPercent: true,
+      value: monthData?.selectedSales ?? "—",
+      percent: monthData?.pctChange, showPercent: true,
     },
     { key: "govInstalls", title: "Gov Installs", icon: <SpeedIcon />, value: kpi.govInstalls ?? "—" },
     { key: "govRenewals", title: "Gov Renewals", icon: <SpeedIcon />, value: kpi.govRenewals ?? "—" },
@@ -63,6 +65,8 @@ const CeoDashboardPage = () => {
     { key: "radioRenewals", title: "Radio Renewals", icon: <RadioIcon />, value: kpi.radioRenewals ?? "—" },
     { key: "trackingInstalls", title: "Tracking Installs", icon: <GpsFixedIcon />, value: kpi.trackingInstalls ?? "—" },
     { key: "trackingRenewals", title: "Tracking Renewals", icon: <GpsFixedIcon />, value: kpi.trackingRenewals ?? "—" },
+    { key: "hybridAlarm", title: "Hybrid Alarm Inst", icon: <NotificationsActiveIcon />, value: kpi.hybridAlarmInstalls ?? "—" },
+    { key: "hybridTracker", title: "Hybrid Tracker Inst", icon: <BlurOnIcon />, value: kpi.hybridTrackerInstalls ?? "—" },
     {
       key: "topShowroom", title: "Top Showroom",
       value: kpi.trackingTopShowroom || "—",
@@ -70,16 +74,7 @@ const CeoDashboardPage = () => {
     },
   ];
 
-  const handleExportPdf = () => {
-    exportCeoPdf({
-      trends: {
-        thisMonthSales: data?.selectedSales,
-        pctVsLastMonth: data?.pctChange,
-        kpi: data?.kpi,
-      },
-      monthly: data?.departments,
-    });
-  };
+  const handleExportPdf = () => exportCeoPdf({ monthData, selectedMonth });
 
   return (
     <ThemeProvider theme={ceoTheme}>
@@ -98,7 +93,7 @@ const CeoDashboardPage = () => {
             overflow: "auto",
           }}
         >
-          {/* Header */}
+          {/* ─── HEADER ─── */}
           <Box
             sx={{
               display: "flex",
@@ -117,13 +112,8 @@ const CeoDashboardPage = () => {
                 {lastUpdated ? `Last updated: ${lastUpdated.toLocaleTimeString()}` : ""}
               </Typography>
             </Box>
-
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-              <MonthYearPicker
-                value={selectedMonth}
-                onChange={setSelectedMonth}
-                label="Month"
-              />
+              <MonthYearPicker value={selectedMonth} onChange={setSelectedMonth} label="Month" />
               <Button
                 variant="outlined"
                 startIcon={!isMobile && <RefreshIcon />}
@@ -137,14 +127,6 @@ const CeoDashboardPage = () => {
             </Box>
           </Box>
 
-          {/* Selected month label */}
-          <Chip
-            label={`Viewing: ${monthLabel}`}
-            color="primary"
-            variant="outlined"
-            sx={{ mb: 2, fontWeight: 700, fontSize: { xs: 13, md: 14 } }}
-          />
-
           {/* Error */}
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
@@ -155,12 +137,19 @@ const CeoDashboardPage = () => {
             </Box>
           )}
 
-          {!loading && data && (
+          {!loading && (
             <>
-              {/* KPI Strip */}
-              <Grid container spacing={{ xs: 1, sm: 1.5, md: 2 }} sx={{ mb: { xs: 2, md: 4 } }}>
+              {/* ─── SECTION 1: Month-Filtered KPIs ─── */}
+              <Chip
+                label={`📅 KPIs for: ${monthLabel}`}
+                color="primary"
+                variant="outlined"
+                sx={{ mb: 2, fontWeight: 700, fontSize: { xs: 12, md: 14 } }}
+              />
+
+              <Grid container spacing={{ xs: 1, sm: 1.5, md: 2 }} sx={{ mb: { xs: 2, md: 3 } }}>
                 {kpiList.map((k) => (
-                  <Grid item xs={6} sm={4} md={2.4} key={k.key}>
+                  <Grid item xs={6} sm={4} md={3} lg={2} key={k.key}>
                     <KpiCard
                       title={k.title}
                       value={k.value}
@@ -174,7 +163,7 @@ const CeoDashboardPage = () => {
                 ))}
               </Grid>
 
-              {/* KPI Drilldown */}
+              {/* KPI Drilldown Modal */}
               <KpiDrilldownModal
                 open={!!drillKpi}
                 onClose={() => setDrillKpi(null)}
@@ -185,23 +174,32 @@ const CeoDashboardPage = () => {
                 </Typography>
               </KpiDrilldownModal>
 
-              {/* Daily Sales for Selected Month */}
-              <DailySalesChart dailySeries={data.dailySeries} month={selectedMonth} />
+              {/* ─── SECTION 2: Showroom Leaderboard (Month-Filtered) ─── */}
+              <ShowroomLeaderboard showroomRanking={monthData?.showroomRanking} />
 
-              {/* Department Comparison: Selected vs Previous */}
-              <DepartmentComparisonChart monthly={data.departments} />
+              {/* ─── DIVIDER: Charts below are always last 6 months ─── */}
+              <Divider sx={{ my: { xs: 2, md: 4 }, borderColor: "rgba(144,202,249,0.15)" }} />
+              <Chip
+                label="📊 6-Month Trend Analytics"
+                color="secondary"
+                variant="outlined"
+                sx={{ mb: 2, fontWeight: 700, fontSize: { xs: 12, md: 14 } }}
+              />
 
-              {/* Gov Daily Breakdown */}
-              <GovDailyChart govDaily={data.govDaily} month={selectedMonth} />
+              {/* ─── SECTION 3: Installation Trends (all depts) ─── */}
+              <InstallationTrendsChart monthlySeries={monthlySeries} />
 
-              {/* 6-Month Trends (always shows last 6 months regardless of selection) */}
-              <MonthlySalesTrendChart monthlySeries={monthlySeries} />
+              {/* ─── SECTION 4: Renewal Trends (all depts) ─── */}
+              <RenewalTrendsChart monthlySeries={monthlySeries} />
 
-              {/* Speed Governor Multi-Month Breakdown */}
-              <SpeedGovernorBreakdownChart monthlySeries={monthlySeries} />
+              {/* ─── SECTION 5: Tracking Installs vs Renewals ─── */}
+              <TrackingTrendChart monthlySeries={monthlySeries} />
 
-              {/* Showroom Leaderboard for Selected Month */}
-              <ShowroomLeaderboard showroomRanking={data.showroomRanking} />
+              {/* ─── SECTION 6: Speed Gov Installs (Agent vs Office) ─── */}
+              <GovInstallsChart monthlySeries={monthlySeries} />
+
+              {/* ─── SECTION 7: Speed Gov Renewals (Agent vs Office) ─── */}
+              <GovRenewalsChart monthlySeries={monthlySeries} />
             </>
           )}
         </Box>
